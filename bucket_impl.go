@@ -14,11 +14,11 @@
 package sim
 
 import (
+	"context"
 	"fmt"
-	"log"
+	"im/ack"
 	"net/http"
 	"sync"
-
 
 	"go.uber.org/atomic"
 )
@@ -38,21 +38,23 @@ type bucket struct {
 	// Ack map
 	ack ack.Acker
 
-	// log
-	log log.Logger
+
+	ctx context.Context
+
+	callback func()
 
 	opts * Option
 }
 
 
 
-func New(log log.Logger,option *Option) Bucket {
+func newBucket(option *Option) Bucket {
 	res := & bucket{
 		rw:       sync.RWMutex{},
 		np:       &atomic.Int64{},
 		closeSig: make(chan string,0),
 		opts: option,
-		log :log,
+
 	}
 	res.clis = make(map[string]Client,res.opts.BucketSize)
 	res.start()
@@ -68,18 +70,12 @@ func (h *bucket)Flush(){
 }
 
 
-func(h *bucket)CreateConn(w http.ResponseWriter,r * http.Request,token string,handler Receive)(Client,error){
+func(h *bucket)CreateConn(w http.ResponseWriter,r * http.Request,token string)(Client,error){
 	return  CreateConn(w , r ,
 		h.closeSig,
-		h.opts.ClientBufferSize,
-		h.opts.MessageType,
-		h.opts.Protocol,
-		h.opts.ReaderBufferSize,
-		h.opts.WriteBufferSize,
 		token ,
-		h.opts.ctx,
-		handler,
-		h.log)
+		h.ctx,
+		h.opts )
 }
 
 
@@ -88,10 +84,21 @@ func (h *bucket)randId()int64{
 	return 0
 }
 
-func (h *bucket) Onlines()int64 {
+func (h *bucket) Online()int64 {
 	return h.np.Load()
 }
 
+
+func (h *bucket) Send(data []byte, token string, Ack bool) error{
+	h.rw.RLock()
+	cli ,ok:= h.clis[token];
+	h.rw.RUnlock()
+	if !ok{
+		return ErrCliISNil
+	}else {
+		return h.send(cli,token,data,Ack)
+	}
+}
 
 
 func (h *bucket) send (cli Client,token string,data []byte,ack bool)error{
@@ -142,7 +149,7 @@ func (h *bucket) OffLine(token string) {
 
 
 // 将用户注册到bucket中
-func (h *bucket) Register(cli client.Clienter,token string) error {
+func (h *bucket) Register(cli Client,token string) error {
 	if cli == nil  {
 		return ErrCliISNil
 	}
@@ -150,7 +157,7 @@ func (h *bucket) Register(cli client.Clienter,token string) error {
 	defer h.rw.Unlock()
 	old,ok := h.clis[token];
 	if ok {
-		h.log.Warnf("im/bucket : User token %s is online, but is trying to connect again",token)
+		//h.log.Warnf("im/bucket : User token %s is online, but is trying to connect again",token)
 		clienter ,_:= old.(*Cli)
 		clienter.OfflineForRetry(true)
 	}

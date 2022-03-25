@@ -18,74 +18,153 @@ import (
 	"time"
 )
 
-type Group struct {
+type tg struct {
+	mp map[string] *Group // wti => []string
 	rw *sync.RWMutex
-	set  map[string]client.Clienter
-	createTime int64
 }
 
-func NewGroup()*Group {
-	return &Group{
-		rw:  &sync.RWMutex{},
-		set: map[string]client.Clienter{},
-		createTime: time.Now().Unix(),
+
+func newwti() WTI {
+	return &tg{
+		mp: map[string]*Group{},
+		rw: &sync.RWMutex{},
 	}
 }
 
 
-
-
-func (g *Group) CreateTime ()int64{
-	// should add mutex ,but maybe not
-	return g.createTime
-}
-
-// 给所有用户广播
-func (g *Group) broadCast(content []byte){
-	g.rw.RLock()
-	defer g.rw.RUnlock()
-	for _,v := range g.set {
-		v.Send(content)
+// 给用户设置标签
+func (t *tg)  SetTAG(cli Client, tags ...string) {
+	if len(tags)== 0 {
+		return
+	}
+	t.rw.Lock()
+	defer t.rw.Unlock()
+	for _,tag := range tags{
+		if group,ok:= t.mp[tag];!ok { // wti not exist
+			t.mp[tag]= NewGroup()
+			t.mp[tag].addCli(cli)
+		}else { // wti exist
+			group.addCli(cli)
+		}
 	}
 }
 
-// 添加cli
-func (g *Group) addCli(clis ...client.Clienter){
-	g.rw.Lock()
-	defer g.rw.Unlock()
-	for _,v := range clis{
-		g.set[v.Token()]=v
+
+// 删除用户的标签
+func (t *tg) DelTAG(cli Client, tags ...string){
+	if len(tags) == 0 {return }
+	t.rw.Lock()
+	defer t.rw.Unlock()
+	for _,tag := range tags {
+		if group,ok := t.mp[tag];!ok{
+			continue
+		}else {
+			group.rmCli(cli.Token())
+		}
 	}
 }
 
-// 删除cli
-func (g *Group) rmCli(tokens ... string){
-	g.rw.Lock()
-	defer g.rw.Unlock()
-	for _,token := range tokens {
-		delete(g.set,token)
+
+// 给某一个标签的群体进行广播
+func (t *tg) BroadCast(content []byte,tags ...string) {
+	if len(tags)== 0 {
+		return
+	}
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+
+	for _,tag := range tags{
+		if group,ok := t.mp[tag];ok{
+			group.broadCast(content)
+		}
 	}
 }
 
-// 是否存在cli
-func (g *Group) isExsit(token string)bool{
-	g.rw.RLock()
-	defer g.rw.RUnlock()
-	if _,ok:=g.set[token];ok{
-		return true
+
+// 通知所有组进行自查某个用户，并删除
+func (t *tg)Update(token ...string){
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+	for _,v := range t.mp {
+		v.Update(token... )
 	}
-	return false
-}
-
-// 是否存在cli
-func (g *Group) Counter()int64{
-	g.rw.RLock()
-	defer g.rw.RUnlock()
-	return int64(len(g.set))
 }
 
 
-// 就是使用这个方法将g 注册到Observer 上面去。
-func (g *Group) Update(tokens ... string){
-	g.rmCli(tokens...)
+// 调用这个就可以分类广播，可能出现不同的targ 需要不同的内容
+func(t *tg)BroadCastByTarget(targetAndContent map[string][]byte){
+	if len(targetAndContent) == 0{ return }
+	for target ,content := range targetAndContent {
+		go t.BroadCast(content,target)
+	}
+}
+
+
+// 获取到用户token的所有TAG，时间复杂度是O(m) ,m是所有的房间
+func (t *tg)GetClientTAGs(token string)[]string{
+	var res []string
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+	for k,v:= range t.mp{
+		exsit:= v.isExsit(token)
+		if exsit {
+			res = append(res,k )
+		}
+	}
+	return res
+}
+
+// 如果创建时间为0 ，表示没有这个房间
+func (t *tg) GetTAGCreateTime(tag string) int64{
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+	if v,ok:=t.mp[tag];ok{
+		return v.createTime
+	}
+	return 0
+}
+
+
+// 删除tag ,这个调用一个大锁将全局锁住清空过去的内容
+func (t *tg) FlushWTI() {
+	t.rw.Lock()
+	defer t.rw.Unlock()
+	for k,v := range t.mp{
+		if v.Counter() ==0 && time.Now().Unix() -v.CreateTime() >60 {
+			delete(t.mp,k)
+		}
+	}
+}
+
+
+// 获取到tagOnlines 在线用户人数
+func (t *tg) Distribute(tags...  string) map[string]*DistributeParam {
+	var res = map[string]*DistributeParam{}
+	if len(tags) == 0 {
+		t.rw.RLock()
+		for k,v:= range t.mp {
+			tem := &DistributeParam{
+				TagName:    k,
+				Onlines:    v.Counter(),
+				CreateTime: v.createTime,
+			}
+			res[k]=tem
+		}
+		t.rw.RUnlock()
+		return res
+	}
+	t.rw.RLock()
+	for _,tag := range tags {
+		// get the tag
+		if v,ok := t.mp[tag];ok {
+			tem := &DistributeParam{
+				TagName:    tag,
+				Onlines:    v.Counter(),
+				CreateTime: v.createTime,
+			}
+			res[tag]= tem
+		}
+	}
+	t.rw.RUnlock()
+	return res
 }

@@ -17,8 +17,6 @@ package sim
 
 import (
 	"fmt"
-	"github.com/mongofs/im/client"
-
 	"net/http"
 	"testing"
 )
@@ -26,7 +24,7 @@ import (
 type MockClient struct {
 	token string
 }
-func NewClient(token string )Client {
+func NewClient(token string ) Client {
 	return &MockClient{token: token}
 }
 
@@ -220,7 +218,7 @@ func TestTg_UpdateAndF(t *testing.T) {
 		if err !=nil {
 			t.Fatal(err)
 		}
-		res ,_:= GetClienterTAGs(v.give)
+		res ,_:= GetClientTAGs(v.give)
 		fmt.Println(res)
 	}
 	// output : []

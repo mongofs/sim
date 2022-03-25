@@ -13,10 +13,9 @@
 
 package sim
 
+import "github.com/pkg/errors"
 
-
-type Validater interface {
-	Validate(token string)error
-	ValidateFailed(err error,cli Client)
-	ValidateSuccess(cli Client)
-}
+var (
+	ErrTokenIsNil = errors.New("sim : ValidateKey can't be nil")
+	ErrUserBufferIsFull = errors.New("sim : The client buffer is about to fill up")
+)

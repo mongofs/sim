@@ -14,48 +14,66 @@
 package sim
 
 import (
-	"errors"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
 
 
 
-func (s *ImSrever) initRouter()error{
-	//分组创建路由
-	s.http.HandleFunc("/ping", func(writer http.ResponseWriter, request *http.Request) {
-		res := &Response{
-			w:      writer,
-			Status: 403,
-			Data:   "ok",
-		}
-		res.SendJson()
-	})
-	s.http.HandleFunc("/conn", s.Connection)
+type Response struct {
+	w      http.ResponseWriter
+	Status int         `json:"status"`
+	Data   interface{} `json:"data"`
+}
+
+
+func (r *Response) SendJson() (int, error) {
+	resp, _ := json.Marshal(r)
+	r.w.Header().Set("Content-Type", "application/json")
+	r.w.WriteHeader(r.Status)
+	return r.w.Write(resp)
+}
+
+
+
+func (s *sim) initRouter()error{
+	s.http.HandleFunc(RouterHealth, handlerHealth)
+	s.http.HandleFunc(RouterConnection, s.Connection)
 	return nil
 }
 
-// create  connection
-func (s *ImSrever) Connection(writer http.ResponseWriter, request *http.Request){
+func handlerHealth (w http.ResponseWriter,r *http.Request){
+	res := &Response{
+		w:      w,
+		Status: 200,
+		Data:   "ok",
+	}
+	res.SendJson()
+}
+
+
+//Connection  create  connection
+func (s *sim) Connection(writer http.ResponseWriter, r *http.Request){
 	now :=time.Now()
 	defer func() {
 		escape := time.Since(now)
-		s.opt.ServerLogger.Infof("im/router : %s create %s  cost %v  url is %v ", request.RemoteAddr,request.Method,escape,request.URL)
+		log.Info(fmt.Sprintf("sim : %s create %s  cost %v  url is %v ", r.RemoteAddr,r.Method,escape,r.URL))
 	}()
-
 	res := &Response{
 		w:      writer,
 		Data:   nil,
 		Status: 200,
 	}
-	if request.ParseForm() != nil {
+	if r.ParseForm() != nil {
 		res.Status = 400
 		res.Data = "connection is bad "
 		res.SendJson()
 		return
 	}
 
-	token:= request.Form.Get("token")
+	token:= r.Form.Get(ValidateKey)
 	if token == "" {
 		res.Status=400
 		res.Data = "token validate error"
@@ -63,22 +81,18 @@ func (s *ImSrever) Connection(writer http.ResponseWriter, request *http.Request)
 	}
 	// validate token
 	bs:= s.bucket(token)
-	cli,err := bs.CreateConn(writer,request,token,s.opt.ServerReceive)
+	cli,err := bs.CreateConn(writer,r,token)
 	if err !=nil {
 		res.Status=400
 		res.Data = err.Error()
 		return
 	}
-	// validate failed
 	if err := s.opt.ServerValidate.Validate(token);err !=nil {
 		s.opt.ServerValidate.ValidateFailed(err,cli)
 		return
 	}else {
-		//validate success
 		s.opt.ServerValidate.ValidateSuccess(cli)
 	}
-
-
 	// register to data
 	if err := bs.Register(cli,token);err !=nil {
 		cli.Send([]byte(err.Error()))

@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package im.basic;
+option go_package = "grpc";
+
+message Empty{}
+
+message SendMsgReq {
+repeated string token =1;
+bytes data =2;
+}
+
+
+
+message OnlineReply{
+int64 number =1 ;
+}
+
+message BroadcastReq{
+bytes data =1;
+}
+
+message BroadcastReply{
+int64  size=1 ;
+}
+
+
+message PushToClient{
+int64 sid=1 ;
+bytes msg =2 ;
+}
+
+
+// target1 ,content1
+// target2 ,content2
+message BroadcastByWTIReq{
+map<string,bytes> data  =1;
+}
+
+// wti 的内容，获取到当前target人数分布
+message WTIDistributeReply{
+map<string,WTIDistribute>  data =1 ;
+}
+
+
+message WTIDistribute {
+string tag =1;  // 标签名称
+int64 number =2 ; // 在线人数
+int64 createTime =3 ; // 创建时间
+}
+
+service Basic {
+    // Ping Service
+    rpc Ping(Empty) returns(Empty);
+    rpc Online(Empty)returns (OnlineReply);
+    rpc SendMessageToMultiple(SendMsgReq) returns (Empty);
+    // 广播
+    rpc Broadcast(BroadcastReq) returns (BroadcastReply);
+
+    // 新增支持 v1.01
+    // 使用WTI方式进行用户广播，只支持群组下发
+    rpc WTIBroadcast(BroadcastByWTIReq) returns (BroadcastReply);
+    // 获取到某个tag下的用户总数量
+    rpc WTIDistribute(Empty)returns (WTIDistributeReply);
+}

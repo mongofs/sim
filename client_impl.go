@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -38,10 +37,12 @@ type Cli struct {
 	closeSig       chan<- string
 	handleReceive  Receive
 
-	log log.Logger
 	protocol    int // json /protobuf
 	messageType int // text /binary
 }
+
+
+
 
 
 func (c * Cli)Token()string{
@@ -79,7 +80,7 @@ func (c *Cli) Send(data []byte, i ...int64) error {
 	if c.protocol == ProtocolJson {
 		d, err = json.Marshal(basic)
 	} else {
-		d, err = proto.Marshal(basic)
+		//d, err = proto.Marshal(basic)
 	}
 	if err != nil {
 		return err
@@ -111,23 +112,22 @@ func (c *Cli)Request()*http.Request{
 }
 
 
-func CreateConn(w http.ResponseWriter, r *http.Request,closeSig chan <- string, buffer, messageType, protocol,
-	readBuffSize, writeBuffSize int, token string, ctx context.Context,handler Receive,log log.Logger) (Client, error) {
+func CreateConn(w http.ResponseWriter, r *http.Request,closeSig chan <- string, token string, ctx context.Context,
+	option *Option) (Client, error) {
 	res := &Cli{
 		lastHeartBeatT: time.Now().Unix(),
 		done:        make(chan struct{}),
 		reader: r,
 		closeFunc:   sync.Once{},
-		buf:         make(chan []byte, buffer),
+		buf:         make(chan []byte, option.ClientBufferSize),
 		token:       token,
 		ctx:         ctx,
 		closeSig: closeSig,
-		protocol:    protocol,
-		messageType: messageType,
-		handleReceive: handler,
-		log: log,
+		protocol:    option.ClientProtocol,
+		messageType: option.ClientMessageType,
+		handleReceive: option.ServerReceive,
 	}
-	if err := res.upgrade(w, r, readBuffSize, writeBuffSize); err != nil {
+	if err := res.upgrade(w, r, option.ClientReaderBufferSize, option.ClientWriteBufferSize); err != nil {
 		return nil, err
 	}
 	if err := res.start(); err != nil {

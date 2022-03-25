@@ -13,35 +13,38 @@
 
 package sim
 
-import "errors"
+import (
+	"errors"
+	"go.uber.org/atomic"
+)
 
-//  WebSocket Target Interface
+//WTI   WebSocket Target Interface
 type WTI interface {
-	// 给用户打上标签
+	// SetTAG 给用户打上标签
 	SetTAG(cli Client, tags ...string)
 
-	// 删除用户的标签
+	// DelTAG 删除用户的标签
 	DelTAG(cli Client, tags ...string)
 
-	// 如果用户下线将会通知调用这个方法
+	// Update  如果用户下线将会通知调用这个方法
 	Update(token ...string)
 
-	// 广播到包含标签对象
+	// BroadCast 广播到包含标签对象
 	BroadCast(content []byte, tag ...string)
 
-	// 广播所有内容
+	// BroadCastByTarget 广播所有内容
 	BroadCastByTarget(targetAndContent map[string][]byte)
 
-	// 获取某个用户的所有的标签
-	GetClienterTAGs(token string) []string
+	// GetClientTAGs 获取某个用户的所有的标签
+	GetClientTAGs(token string) []string
 
-	// 获取到标签的创建时间
+	// GetTAGCreateTime 获取到标签的创建时间
 	GetTAGCreateTime(tag string) int64
 
-	// 获取到所有tag的用户分布
+	// Distribute 获取到所有tag的用户分布
 	Distribute(tags ...string)map[string]*DistributeParam
 
-	// 调用方法的回收房间的策略
+	// FlushWTI 调用方法的回收房间的策略
 	FlushWTI()
 }
 
@@ -57,11 +60,11 @@ type DistributeParam struct {
 
 // 其他地方将调用这个变量，如果自己公司实现tag需要注入在程序中进行注入
 var (
-	factory WTI = newwti()
-	isSupportWTI = atomic.NewBool(false)
+	factory      WTI = newwti()
+	isSupportWTI     = atomic.NewBool(false)
 )
 
-func Inject(wti WTI) {
+func InjectWTI(wti WTI) {
 	factory = wti
 }
 
@@ -73,7 +76,7 @@ var (
 	ERRNotSupportWTI = errors.New("im/plugins/wti: you should call the SetSupport func")
 )
 
-func SetTAG(cli client.Clienter, tag ...string) error {
+func SetTAG(cli Client, tag ...string) error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
@@ -81,7 +84,7 @@ func SetTAG(cli client.Clienter, tag ...string) error {
 	return nil
 }
 
-func DelTAG(cli client.Clienter, tag ...string) error {
+func DelTAG(cli Client, tag ...string) error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
@@ -113,11 +116,11 @@ func BroadCastByTarget(targetAndContent map[string][]byte) error {
 	return nil
 }
 
-func GetClienterTAGs(token string) ([]string, error) {
+func GetClientTAGs(token string) ([]string, error) {
 	if isSupportWTI.Load() == false {
 		return nil, ERRNotSupportWTI
 	}
-	res := factory.GetClienterTAGs(token)
+	res := factory.GetClientTAGs(token)
 	return res, nil
 }
 

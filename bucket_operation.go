@@ -13,7 +13,10 @@
 
 package sim
 
-import "time"
+import (
+	"go.uber.org/atomic"
+	"time"
+)
 
 func (h *bucket) start (){
 	go h.monitor()
@@ -25,12 +28,12 @@ var temcounter  atomic.Int64
 
 // 删除用户
 func (h *bucket)monitor (){
-	if h.opts.ctx !=nil {
+	if h.ctx !=nil {
 		for  {
 			select {
 			case token :=<- h.closeSig	:
 				h.delUser(token)
-			case <- h.opts.ctx.Done():
+			case <- h.ctx.Done():
 				return
 			}
 		}
@@ -46,10 +49,10 @@ func (h *bucket)monitor (){
 
 // 在线心跳
 func (b *bucket)keepAlive (){
-	if b.opts.ctx !=nil {
+	if b.ctx !=nil {
 		for {
 			select {
-			case <-b.opts.ctx.Done():
+			case <-b.ctx.Done():
 				return
 			default:
 				cancelClis := []Client{}
@@ -57,7 +60,7 @@ func (b *bucket)keepAlive (){
 				b.rw.Lock()
 				for _, cli := range b.clis {
 					// 如果心跳间隔 时间超过两个心跳包的时间，那么默认用户连接不可用
-					if now-cli.LastHeartBeat() < 2*b.opts.HeartBeatInterval {
+					if now-cli.LastHeartBeat() < 2*int64(b.opts.ClientHeartBeatInterval) {
 						continue
 					}
 					cancelClis = append(cancelClis,cli)
@@ -79,7 +82,7 @@ func (b *bucket)keepAlive (){
 			// 如果心跳间隔 时间超过两个心跳包的时间，那么默认用户连接不可用
 			interval := now-cli.LastHeartBeat()
 
-			if  interval< 2*b.opts.HeartBeatInterval {
+			if  interval< 2*int64(b.opts.ClientHeartBeatInterval){
 				continue
 			}
 			cancelClis = append(cancelClis,cli)
@@ -104,8 +107,8 @@ func (h *bucket)delUser(token string) {
 	h.rw.Unlock()
 	h.np.Add(-1)
 	// todo 这里需要用个观察者模式
-	wti.Update(token)
-	if h.opts.callback != nil {
-		h.opts.callback()
+	Update(token)
+	if h.callback != nil {
+		h.callback()
 	}
 }
