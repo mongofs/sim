@@ -25,11 +25,19 @@ import (
 
 
 var (
-	name = "sim"
-	debug = true
+	serverName = "sim"
+	debugModel = true
 )
 
 var  log *zap.Logger  =getLog()
+
+func SetLogName (name string){
+	serverName =name
+}
+
+func SetDebugModel(debug bool){
+	debugModel = debug
+}
 
 
 // Inject 将日志变为自身的变量
@@ -66,7 +74,7 @@ func  getLog() *zap.Logger {
 	})
 
 	//debug为ture  日志输出到终端
-	if debug {
+	if debugModel {
 		//debug 直接输出到终端中
 		cores = append(cores, zapcore.NewCore(
 			zapcore.NewJSONEncoder(encoderConfig),
@@ -86,9 +94,9 @@ func  getLog() *zap.Logger {
 
 	} else {
 		// 获取 info、error日志文件的io.Writer 抽象 getWriter() 在下方实现
-		infoWriter := getWriter(name + "_info.log")
-		waringWriter := getWriter(name + "_waring.log")
-		errorWriter := getWriter(name + "_error.log")
+		infoWriter := getWriter(serverName + "_info.log")
+		waringWriter := getWriter(serverName + "_waring.log")
+		errorWriter := getWriter(serverName + "_error.log")
 		cores = append(cores, zapcore.NewCore(
 			zapcore.NewJSONEncoder(encoderConfig),
 			zapcore.NewMultiWriteSyncer(
