@@ -18,38 +18,36 @@ import (
 	"time"
 )
 
-func (h *bucket) start (){
+func (h *bucket) start() {
 	go h.monitor()
 	go h.keepAlive()
 }
 
-var temcounter  atomic.Int64
-
+var temcounter atomic.Int64
 
 // 删除用户
-func (h *bucket)monitor (){
-	if h.ctx !=nil {
-		for  {
+func (h *bucket) monitor() {
+	if h.ctx != nil {
+		for {
 			select {
-			case token :=<- h.closeSig	:
+			case token := <-h.closeSig:
 				h.delUser(token)
-			case <- h.ctx.Done():
+			case <-h.ctx.Done():
 				return
 			}
 		}
 	}
-	for  {
+	for {
 		select {
-		case token :=<- h.closeSig	:
+		case token := <-h.closeSig:
 			h.delUser(token)
 		}
 	}
 }
 
-
 // 在线心跳
-func (b *bucket)keepAlive (){
-	if b.ctx !=nil {
+func (b *bucket) keepAlive() {
+	if b.ctx != nil {
 		for {
 			select {
 			case <-b.ctx.Done():
@@ -63,10 +61,10 @@ func (b *bucket)keepAlive (){
 					if now-cli.LastHeartBeat() < 2*int64(b.opts.ClientHeartBeatInterval) {
 						continue
 					}
-					cancelClis = append(cancelClis,cli)
+					cancelClis = append(cancelClis, cli)
 				}
 				b.rw.Unlock()
-				for _,cancel := range cancelClis{
+				for _, cancel := range cancelClis {
 					cancel.Offline()
 				}
 			}
@@ -80,15 +78,15 @@ func (b *bucket)keepAlive (){
 		b.rw.Lock()
 		for _, cli := range b.clis {
 			// 如果心跳间隔 时间超过两个心跳包的时间，那么默认用户连接不可用
-			interval := now-cli.LastHeartBeat()
+			interval := now - cli.LastHeartBeat()
 
-			if  interval< 2*int64(b.opts.ClientHeartBeatInterval){
+			if interval < 2*int64(b.opts.ClientHeartBeatInterval) {
 				continue
 			}
-			cancelClis = append(cancelClis,cli)
+			cancelClis = append(cancelClis, cli)
 		}
 		b.rw.Unlock()
-		for _,cancel := range cancelClis{
+		for _, cancel := range cancelClis {
 			cancel.Offline()
 		}
 
@@ -96,12 +94,8 @@ func (b *bucket)keepAlive (){
 	}
 }
 
-
-
-
-
 // 删除用户
-func (h *bucket)delUser(token string) {
+func (h *bucket) delUser(token string) {
 	h.rw.Lock()
 	delete(h.clis, token)
 	h.rw.Unlock()

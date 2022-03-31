@@ -17,10 +17,10 @@ import "net/http"
 
 type Client interface {
 
-	// Send 调用此方法可以给当前用户发送消息
+	// Send
 	Send([]byte, ...int64) error
 
-	// Offline 用户下线
+	// Offline
 	Offline()
 
 	// ResetHeartBeatTime 重置用户的心跳
@@ -43,12 +43,11 @@ type Client interface {
 }
 
 const (
-	waitTime          = 1 << 7
+	waitTime = 1 << 7
 
-	ProtocolJson      = 1
-	ProtocolProtobuf  = 2
+	ProtocolJson     = 1
+	ProtocolProtobuf = 2
 
 	MessageTypeText   = 1
 	MessageTypeBinary = 2
 )
-

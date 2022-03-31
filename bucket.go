@@ -14,21 +14,18 @@
 package sim
 
 import (
-	"errors"
 	"net/http"
 )
 
 type Bucket interface {
 
-	// Send can send
-	// send data to someone
-	// ACK indicates whether the message is a receipt message
+	// Send 发送消息给某个token，并且标识是否需要ACK回执
 	Send(data []byte, token string ,Ack bool)error
 
-	// BroadCast Send messages to all online users
+	// BroadCast 发送消息给这个bucket的全部用户，并且标识是否需要ACK回执
 	BroadCast(data []byte ,Ack bool)error
 
-	// OffLine Kick users offline
+	// OffLine 下线某个用户
 	OffLine(token string)
 
 	// Register user to basket
@@ -37,7 +34,7 @@ type Bucket interface {
 	//IsOnline Judge whether the user is online
 	IsOnline(token string)bool
 
-
+	// Online 查看在线用户有多少个
 	Online()int64
 
 
@@ -51,7 +48,3 @@ type Bucket interface {
 }
 
 
-var (
-	ErrUserExist =errors.New("im/bucket : Cannot login repeatedly")
-	ErrCliISNil  =errors.New("im/bucket : cli is nil")
-)

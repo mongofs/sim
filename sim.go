@@ -48,6 +48,7 @@ type Discover interface {
 // 方法，调用validate方法后可能会成功，可能会失败，不论成功或者失败都需要发送业务层的内容
 // 所以需要服务注册时候实现validate整个接口
 type Validate interface {
+	// Validate 用户创建链接的时候需要验证令牌，令牌如何获取可以通过
 	Validate(token string) error
 	ValidateFailed(err error, cli Client)
 	ValidateSuccess(cli Client)

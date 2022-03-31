@@ -15,9 +15,13 @@ package sim
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"sim/pkg/logging"
+	"time"
 
 	im "sim/api/v1"
+	"sim/pkg/errors"
 
 	"github.com/zhenjl/cityhash"
 	"go.uber.org/atomic"
@@ -33,6 +37,71 @@ type sim struct {
 	buffer chan []byte
 	cancel func()
 	opt    *Option
+}
+
+// Ping 发送ping消息
+func (s *sim) Ping(ctx context.Context, empty *im.Empty) (*im.Empty, error) {
+	return nil, nil
+}
+
+// Online 在线用户
+func (s *sim) Online(ctx context.Context, empty *im.Empty) (*im.OnlineReply,
+	error) {
+	num := s.ps.Load()
+	req := &im.OnlineReply{Number: num}
+	return req, nil
+}
+
+// Broadcast 给所有在线用户广播
+func (s *sim) Broadcast(ctx context.Context, req *im.BroadcastReq) (
+	*im.BroadcastReply, error) {
+	if len(s.buffer)*10 > 8*cap(s.buffer) {
+		return nil, errors.ErrUserBufferIsFull
+	}
+	s.buffer <- req.Data
+	return &im.BroadcastReply{
+		Size: int64(len(s.buffer)),
+	}, nil
+}
+
+func (s *sim) WTIDistribute(ctx context.Context, req *im.Empty) (
+	*im.WTIDistributeReply, error) {
+	distribute, err := Distribute()
+	if err != nil {
+		return nil, err
+	}
+
+	var result = map[string]*im.WTIDistribute{}
+	for k, v := range distribute {
+		data := &im.WTIDistribute{
+			Tag:        v.TagName,
+			Number:     v.Onlines,
+			CreateTime: v.CreateTime,
+		}
+		result[k] = data
+	}
+	return &im.WTIDistributeReply{
+		Data: result,
+	}, nil
+}
+
+func (s *sim) WTIBroadcast(ctx context.Context, req *im.BroadcastByWTIReq) (
+	*im.BroadcastReply, error) {
+	var err error
+	err = BroadCastByTarget(req.Data)
+	return &im.BroadcastReply{
+		Size: int64(len(s.buffer)),
+	}, err
+}
+
+func (s *sim) SendMessageToMultiple(ctx context.Context, req *im.SendMsgReq) (
+	*im.Empty, error) {
+	var err error
+	for _, token := range req.Token {
+		bs := s.bucket(token)
+		err = bs.Send(req.Data, token, false)
+	}
+	return &im.Empty{}, err
 }
 
 func New(opts *Option) *sim {
@@ -78,80 +147,80 @@ func (s *sim) bucket(token string) Bucket {
 	return s.bs[idx]
 }
 
+func (s *sim) initRouter() error {
+	s.http.HandleFunc(RouterHealth, handlerHealth)
+	s.http.HandleFunc(RouterConnection, s.Connection)
+	return nil
+}
+
+//Connection  create  connection
+func (s *sim) Connection(writer http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+	defer func() {
+		escape := time.Since(now)
+		logging.Infof("sim : %s create %s  cost %v  url is %v ", r.RemoteAddr, r.Method, escape, r.URL)
+	}()
+	res := &Response{
+		w:      writer,
+		Data:   nil,
+		Status: 200,
+	}
+	if r.ParseForm() != nil {
+		res.Status = 400
+		res.Data = "connection is bad "
+		res.SendJson()
+		return
+	}
+
+	token := r.Form.Get(ValidateKey)
+	if token == "" {
+		res.Status = 400
+		res.Data = "token validate error"
+		res.SendJson()
+	}
+	// validate token
+	bs := s.bucket(token)
+	cli, err := bs.CreateConn(writer, r, token)
+	if err != nil {
+		res.Status = 400
+		res.Data = err.Error()
+		return
+	}
+	if err := s.opt.ServerValidate.Validate(token); err != nil {
+		s.opt.ServerValidate.ValidateFailed(err, cli)
+		return
+	} else {
+		s.opt.ServerValidate.ValidateSuccess(cli)
+	}
+	// register to data
+	if err := bs.Register(cli, token); err != nil {
+		cli.Send([]byte(err.Error()))
+		cli.Offline()
+	}
+}
+
+type Response struct {
+	w      http.ResponseWriter
+	Status int         `json:"status"`
+	Data   interface{} `json:"data"`
+}
+
+func (r *Response) SendJson() (int, error) {
+	resp, _ := json.Marshal(r)
+	r.w.Header().Set("Content-Type", "application/json")
+	r.w.WriteHeader(r.Status)
+	return r.w.Write(resp)
+}
+
+func handlerHealth(w http.ResponseWriter, r *http.Request) {
+	res := &Response{
+		w:      w,
+		Status: 200,
+		Data:   "ok",
+	}
+	res.SendJson()
+}
+
 func Index(token string, size uint32) uint32 {
 	return cityhash.CityHash32([]byte(token), uint32(len(token))) % size
-}
-
-// Ping 发送ping消息
-func (s *sim) Ping(ctx context.Context, empty *im.Empty) (*im.Empty, error) {
-	return nil, nil
-}
-
-// Online 在线用户
-func (s *sim) Online(ctx context.Context, empty *im.Empty) (*im.OnlineReply,
-	error) {
-	num := s.ps.Load()
-	req := &im.OnlineReply{Number: num}
-	return req, nil
-}
-
-
-
-// Broadcast 给所有在线用户广播
-func (s *sim) Broadcast(ctx context.Context, req *im.BroadcastReq) (
-	*im.BroadcastReply, error) {
-	if len(s.buffer)*10 > 8*cap(s.buffer) {
-		return nil,ErrUserBufferIsFull
-	}
-	s.buffer <- req.Data
-	return &im.BroadcastReply{
-		Size: int64(len(s.buffer)),
-	}, nil
-}
-
-// WTIDistribute 获取每个版本多少人
-func (s *sim) WTIDistribute(ctx context.Context, req *im.Empty) (
-	*im.WTIDistributeReply, error) {
-	distribute, err := Distribute()
-	if err != nil {
-		return nil, err
-	}
-
-	var result = map[string]*im.WTIDistribute{}
-	for k, v := range distribute {
-		data := &im.WTIDistribute{
-			Tag:        v.TagName,
-			Number:     v.Onlines,
-			CreateTime: v.CreateTime,
-		}
-		result[k] = data
-	}
-	return &im.WTIDistributeReply{
-		Data: result,
-	}, nil
-}
-
-// WTIBroadcast 在开发过程中存在IM需要版本共存的需求，比如我的协议替换了，但是如果im应用在App上面如何
-// 进行切换，这就是协议定制不合理的地方，但也需要.IM 服务器在这个过程中做配合。
-// IM 存在给用户分组的需求，所以我们在进行Broadcast 就必须进行用户的状态区分，所以前台需要对内容进行分
-// 组，传入的内容也需要对应分组比如 v1 => string ，v2 => []byte，那么v1，v2 就是不相同的两个版本内
-// 容。在client上面可以设置用户的连接版本Version，建议在使用用户
-func (s *sim) WTIBroadcast(ctx context.Context, req *im.BroadcastByWTIReq) (
-	*im.BroadcastReply, error) {
-	var err error
-	err = BroadCastByTarget(req.Data)
-	return &im.BroadcastReply{
-		Size: int64(len(s.buffer)),
-	}, err
-}
-
-// SendMessageToMultiple 发送消息给多个用户
-func (s *sim) SendMessageToMultiple(ctx context.Context, req *im.SendMsgReq)(
-	*im.Empty, error) {
-	var err error
-	for _, token := range req.Token {
-		bs := s.bucket(token)
-		err = bs.Send(req.Data, token, false)
-	}
-	return &im.Empty{}, err
 }
