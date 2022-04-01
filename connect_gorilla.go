@@ -15,15 +15,16 @@ package sim
 
 import (
 	"encoding/json"
-	"github.com/gorilla/websocket"
 	"net/http"
-	"sim/pkg/errors"
-	"sim/pkg/logging"
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	api "sim/api/v1"
+	"sim/pkg/errors"
+	"sim/pkg/logging"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/gorilla/websocket"
 )
 
 const (

@@ -190,21 +190,21 @@ func (h *bucket) monitor() {
 // 使用，所以这里暂时还是需要用户了解我内部的心跳规则，后续可能使用range方式
 // 将本地变量通过通道传出来，但是目前这种设想会增加调用者心智负担，暂时在更新
 // 2.0 版本之前不考虑将心跳迁移出来
-func (b *bucket) keepAlive() {
+func (h *bucket) keepAlive() {
 	for {
 		var cancelCli []Client
 		now := time.Now().Unix()
-		b.rw.Lock()
-		for _, cli := range b.clis {
+		h.rw.Lock()
+		for _, cli := range h.clis {
 
 			inter := now - cli.GetLastHeartBeatTime()
 
-			if inter < 2*int64(b.opts.ClientHeartBeatInterval) {
+			if inter < 2*int64(h.opts.ClientHeartBeatInterval) {
 				continue
 			}
 			cancelCli = append(cancelCli, cli)
 		}
-		b.rw.Unlock()
+		h.rw.Unlock()
 		for _, cancel := range cancelCli {
 			cancel.Close(false)
 		}
