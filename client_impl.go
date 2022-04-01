@@ -20,17 +20,15 @@ import (
 type Cli struct {
 	Connect
 	reader        *http.Request
-	handleReceive Receive
 }
 
 
 func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, token *string, option *Option) (Client, error) {
 	res := &Cli{
 		reader:        r,
-		handleReceive: option.ServerReceive,
 	}
 
-	conn, err := NewGorilla(token, closeSig, option, w, r)
+	conn, err := NewGorilla(token, closeSig, option, w, r,option.ServerReceive)
 	if err != nil {
 		return nil, err
 	}

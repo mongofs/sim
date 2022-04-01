@@ -72,7 +72,7 @@ type gorilla struct {
 	messageType   MessageType // text /binary
 }
 
-func NewGorilla(token *string, closeChan chan<- string, option *Option, w http.ResponseWriter, r *http.Request) (Connect, error) {
+func NewGorilla(token *string, closeChan chan<- string, option *Option, w http.ResponseWriter, r *http.Request,handlerReceive Receive) (Connect, error) {
 	result := &gorilla{
 		once:          sync.Once{},
 		con:           nil,
@@ -88,6 +88,8 @@ func NewGorilla(token *string, closeChan chan<- string, option *Option, w http.R
 	if err != nil {
 		return nil, err
 	}
+	go result.monitorSend()
+	go result.monitorReceive(handlerReceive)
 	return result, nil
 }
 
@@ -106,10 +108,6 @@ func (c *gorilla) Send(data []byte) error {
 	}
 	c.handlerProtocol(data)
 	return nil
-}
-
-func (c *gorilla) Read() (dataCh <-chan []byte) {
-	return c.output
 }
 
 func (c *gorilla) Close(retry bool) error {
@@ -180,7 +178,7 @@ loop:
 	c.close(false)
 }
 
-func (c *gorilla) monitorReceive() {
+func (c *gorilla) monitorReceive(handleReceive Receive) {
 	defer func() {
 		if err := recover(); err != nil {
 			logging.Errorf("sim : recvProc 发生panic %v", err)
@@ -191,8 +189,7 @@ func (c *gorilla) monitorReceive() {
 		if err != nil {
 			goto loop
 		}
-		// 这里拿到的都是整条消息，
-		c.output <- data
+		handleReceive.Handle(c,data)
 	}
 loop:
 	c.close(false)

@@ -25,7 +25,6 @@ import (
 	"go.uber.org/atomic"
 )
 
-type Monitor func()
 
 type bucket struct {
 	rw sync.RWMutex
@@ -66,7 +65,6 @@ type bucket struct {
 	//
 	//		time.Sleep(10 * time.Second)
 	//	}
-	monitorHeartBeat Monitor
 
 	opts *Option
 }

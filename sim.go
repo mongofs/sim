@@ -44,5 +44,5 @@ type Validate interface {
 // Receive 是需要用户进行注册，主要是为了接管用户上传的消息内容，在消息处理的时候可以根据
 // 自身的业务需求进行处理
 type Receive interface {
-	Handle(Client Client, data <- chan []byte)
+	Handle(conn Connect, data []byte)
 }
