@@ -49,11 +49,11 @@ func (m MockClient) Request() *http.Request {
 	panic("implement me")
 }
 
-func (m MockClient) SetMessageType(i int) {
+func (m MockClient) SetMessageType(messageType MessageType) {
 	panic("implement me")
 }
 
-func (m MockClient) SetProtocol(i int) {
+func (m MockClient) SetProtocol(protocol Protocol) {
 	panic("implement me")
 }
 

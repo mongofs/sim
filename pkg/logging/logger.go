@@ -69,6 +69,9 @@ func init() {
 
 	// Initializes the inside default logger of sim.
 	fileName := os.Getenv("LOGGINH_FILE")
+	if len(fileName) == 0 {
+		fileName = "./log/steven.log"
+	}
 	if len(fileName) > 0 {
 		var err error
 		defaultLogger, flushLogs, err = CreateLoggerAsLocalFile(fileName, defaultLoggingLevel)
