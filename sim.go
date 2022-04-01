@@ -13,11 +13,6 @@
 
 package sim
 
-import (
-	"context"
-	im "sim/api/v1"
-)
-
 const (
 	RouterConnection = "/conn"
 	RouterHealth     = "/health"
@@ -25,14 +20,6 @@ const (
 	ValidateKey = "token"
 )
 
-type Sim interface {
-	Ping(context.Context, *im.Empty) (*im.Empty, error)
-	Online(context.Context, *im.Empty) (*im.OnlineReply, error)
-	SendMessageToMultiple(context.Context, *im.SendMsgReq) (*im.Empty, error)
-	Broadcast(context.Context, *im.BroadcastReq) (*im.BroadcastReply, error)
-	WTIBroadcast(context.Context, *im.BroadcastByWTIReq) (*im.BroadcastReply, error)
-	WTIDistribute(context.Context, *im.Empty) (*im.WTIDistributeReply, error)
-}
 
 // Discover 可以在服务启动停止的时候自动想注册中心进行注册和注销，这个实现是可选的，具体可
 // 查看option的参数，如果没有discover 就是一个单节点，也是可以启动。但是建议你在生产环境

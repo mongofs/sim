@@ -37,7 +37,6 @@ type sim struct {
 	opt    *Option
 }
 
-
 func New(opts *Option) *sim {
 	b := &sim{
 		ps:  atomic.Int64{},
@@ -129,7 +128,7 @@ func (s *sim) Connection(writer http.ResponseWriter, r *http.Request) {
 	// register to data
 	if err := bs.Register(cli, token); err != nil {
 		cli.Send([]byte(err.Error()))
-		cli.Offline()
+		cli.Close(false)
 	}
 }
 
