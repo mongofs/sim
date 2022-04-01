@@ -15,31 +15,19 @@ package sim
 
 import "net/http"
 
-
-const (
-	waitTime = 1 << 7
-
-	ProtocolJson     = 1
-	ProtocolProtobuf = 2
-
-	MessageTypeText   = 1
-	MessageTypeBinary = 2
-)
-
-
 type Client interface {
 
-	// Send
-	Send([]byte, ...int64) error
+	// Send 发送消息下去
+	Send([]byte) error
 
-	// Offline
-	Offline()
+	// Close 关闭连接
+	Close(forRetry bool) error
 
-	// ResetHeartBeatTime 重置用户的心跳
-	ResetHeartBeatTime()
+	// ReFlushHeartBeatTime 重置用户的心跳
+	ReFlushHeartBeatTime()
 
-	// LastHeartBeat 获取用户的最后一次心跳
-	LastHeartBeat() int64
+	// GetLastHeartBeatTime 获取用户的最后一次心跳
+	GetLastHeartBeatTime() int64
 
 	// Token 获取用户的token
 	Token() string
@@ -48,9 +36,8 @@ type Client interface {
 	Request() *http.Request
 
 	// SetMessageType 设置用户接收消息的格式
-	SetMessageType(int)
+	SetMessageType(messageType MessageType)
 
 	// SetProtocol 设置用户接收消息的协议：
-	SetProtocol(int)
+	SetProtocol(protocol Protocol)
 }
-

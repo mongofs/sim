@@ -53,12 +53,12 @@ const (
 
 type Option struct {
 	// client
-	ClientHeartBeatInterval int // 用户心跳间隔
-	ClientReaderBufferSize  int // 用户连接读取buffer
-	ClientWriteBufferSize   int // 用户连接写入buffer
-	ClientBufferSize        int // 用户应用层buffer
-	ClientMessageType       int // 用户发送的数据类型
-	ClientProtocol          int // 压缩协议
+	ClientHeartBeatInterval int         // 用户心跳间隔
+	ClientReaderBufferSize  int         // 用户连接读取buffer
+	ClientWriteBufferSize   int         // 用户连接写入buffer
+	ClientBufferSize        int         // 用户应用层buffer
+	ClientMessageType       MessageType // 用户发送的数据类型
+	ClientProtocol          Protocol    // 压缩协议
 
 	// bucket
 	BucketSize int // bucket用户
@@ -88,16 +88,16 @@ func DefaultOption() *Option {
 		ClientMessageType:       DefaultClientMessageType,
 		ClientProtocol:          DefaultClientProtocol,
 		// bucket
-		BucketSize: 			 DefaultBucketSize,
+		BucketSize: DefaultBucketSize,
 		// server
-		ServerBucketNumber: 	 DefaultServerBucketNumber,
-		ServerRpcPort:      	 DefaultServerRpcPort,
-		ServerHttpPort:     	 DefaultServerHttpPort,
+		ServerBucketNumber: DefaultServerBucketNumber,
+		ServerRpcPort:      DefaultServerRpcPort,
+		ServerHttpPort:     DefaultServerHttpPort,
 		// broadCast
-		BroadCastBuffer:  	 	 DefaultBroadCastBuffer,
-		BroadCastHandler: 		 DefaultBroadCastHandler,
+		BroadCastBuffer:  DefaultBroadCastBuffer,
+		BroadCastHandler: DefaultBroadCastHandler,
 		// 插件支持
-		SupportPluginWTI: 		 PluginWTISupport,
+		SupportPluginWTI: PluginWTISupport,
 	}
 }
 
@@ -165,13 +165,13 @@ func WithClientBufferSize(ClientBufferSize int) OptionFunc {
 	}
 }
 
-func WithClientMessageType(ClientMessageType int) OptionFunc {
+func WithClientMessageType(ClientMessageType MessageType) OptionFunc {
 	return func(b *Option) {
 		b.ClientMessageType = ClientMessageType
 	}
 }
 
-func WithClientProtocol(ClientProtocol int) OptionFunc {
+func WithClientProtocol(ClientProtocol Protocol) OptionFunc {
 	return func(b *Option) {
 		b.ClientProtocol = ClientProtocol
 	}

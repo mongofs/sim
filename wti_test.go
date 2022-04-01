@@ -24,29 +24,31 @@ import (
 type MockClient struct {
 	token string
 }
-func NewClient(token string ) Client {
-	return &MockClient{token: token}
+
+func (m MockClient) Send(bytes []byte) error {
+	panic("implement me")
 }
 
-func (m MockClient) Send(bytes []byte, i ...int64) error {
-	fmt.Printf("Send Called : %v \n\r",string(bytes))
-	return nil
-}
-func (m MockClient) Offline() {
+func (m MockClient) Close(forRetry bool) error {
 	panic("implement me")
 }
-func (m MockClient) ResetHeartBeatTime() {
+
+func (m MockClient) ReFlushHeartBeatTime() {
 	panic("implement me")
 }
-func (m MockClient) LastHeartBeat() int64 {
+
+func (m MockClient) GetLastHeartBeatTime() int64 {
 	panic("implement me")
 }
+
 func (m MockClient) Token() string {
-	return m.token
+	panic("implement me")
 }
+
 func (m MockClient) Request() *http.Request {
 	panic("implement me")
 }
+
 func (m MockClient) SetMessageType(i int) {
 	panic("implement me")
 }
@@ -54,6 +56,12 @@ func (m MockClient) SetMessageType(i int) {
 func (m MockClient) SetProtocol(i int) {
 	panic("implement me")
 }
+
+func NewTestClient(token string ) Client {
+	return &MockClient{token: token}
+}
+
+
 
 func TestTg_DelTAG(t *testing.T) {
 	SetSupport()
@@ -72,7 +80,7 @@ func TestTg_DelTAG(t *testing.T) {
 	}
 	// 先设置全局变量
 	for _,v := range tests{
-		SetTAG(NewClient(v.token),v.tag...) // 将每个client 进行设置tag
+		SetTAG(NewTestClient(v.token),v.tag...) // 将每个client 进行设置tag
 	}
 	dis,err := Distribute()
 	if err != nil {
@@ -84,7 +92,7 @@ func TestTg_DelTAG(t *testing.T) {
 
 	// 删除对应的tag
 	for _,v := range tests{
-		DelTAG(NewClient(v.token),v.tag[0])
+		DelTAG(NewTestClient(v.token),v.tag[0])
 	}
 	dis,err = Distribute()
 	if err != nil {
@@ -116,7 +124,7 @@ func TestTg_SetTAG(t *testing.T) {
 
 	for _,v := range tests{
 		for i :=0 ;i< v.number;i++ {
-			SetTAG(NewClient("1234"),v.tag) //,todo 待优化
+			SetTAG(NewTestClient("1234"),v.tag) //,todo 待优化
 		}
 	}
 }

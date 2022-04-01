@@ -50,17 +50,17 @@ type bucket struct {
 	//		cancelCli := []Client{}
 	//		now := time.Now().Unix()
 	//		b.rw.Lock()
-	//		for _, cli := range b.clis {
+	//		for _, cli := range b.cli {
 	//
 	//			interval := now - cli.LastHeartBeat()
 	//
 	//			if interval < 2*int64(b.opts.ClientHeartBeatInterval) {
 	//				continue
 	//			}
-	//			cancelClis = append(cancelClis, cli)
+	//			cancelCli = append(cancelCli, cli)
 	//		}
 	//		b.rw.Unlock()
-	//		for _, cancel := range cancelClis {
+	//		for _, cancel := range cancelCli {
 	//			cancel.Offline()
 	//		}
 	//
@@ -84,7 +84,7 @@ func newBucket(option *Option) Bucket {
 }
 
 func (h *bucket) CreateConn(w http.ResponseWriter, r *http.Request, token string) (Client, error) {
-	return NewClient(w, r, h.closeSig, &token, h.ctx, h.opts)
+	return NewClient(w, r, h.closeSig, &token, h.opts)
 }
 
 func (h *bucket) Online() int64 {
@@ -104,7 +104,7 @@ func (h *bucket) OffLine(token string) {
 	cli, ok := h.clis[token]
 	h.rw.RUnlock()
 	if ok {
-		cli.Offline()
+		cli.Close(false)
 	}
 }
 
@@ -116,8 +116,7 @@ func (h *bucket) Register(cli Client, token string) error {
 	defer h.rw.Unlock()
 	old, ok := h.clis[token]
 	if ok {
-		clienter, _ := old.(*Cli)
-		clienter.OfflineForRetry(true)
+		old.Close(true)
 	}
 	h.clis[token] = cli
 	h.np.Add(1)
@@ -187,26 +186,28 @@ func (h *bucket) monitor() {
 	}
 }
 
+// keepAlive 处理未及时心跳的，目前还未想到很好的方式来讲内部变量交给调用者
+// 使用，所以这里暂时还是需要用户了解我内部的心跳规则，后续可能使用range方式
+// 将本地变量通过通道传出来，但是目前这种设想会增加调用者心智负担，暂时在更新
+// 2.0 版本之前不考虑将心跳迁移出来
 func (b *bucket) keepAlive() {
-
 	for {
-		cancelClis := []Client{}
+		var cancelCli []Client
 		now := time.Now().Unix()
 		b.rw.Lock()
 		for _, cli := range b.clis {
 
-			interval := now - cli.LastHeartBeat()
+			inter := now - cli.GetLastHeartBeatTime()
 
-			if interval < 2*int64(b.opts.ClientHeartBeatInterval) {
+			if inter < 2*int64(b.opts.ClientHeartBeatInterval) {
 				continue
 			}
-			cancelClis = append(cancelClis, cli)
+			cancelCli = append(cancelCli, cli)
 		}
 		b.rw.Unlock()
-		for _, cancel := range cancelClis {
-			cancel.Offline()
+		for _, cancel := range cancelCli {
+			cancel.Close(false)
 		}
-
 		time.Sleep(10 * time.Second)
 	}
 }
