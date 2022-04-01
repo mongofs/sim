@@ -14,17 +14,15 @@
 package sim
 
 import (
-	"fmt"
 	"golang.org/x/sync/errgroup"
 	"net"
 	"net/http"
+	"sim/pkg/logging"
 	"time"
 )
 
-
-
-func (s *sim)Run ()error {
-	var prepareParallelFunc = [] func()error {
+func (s *sim) Run() error {
+	var prepareParallelFunc = []func() error{
 		// 启用单独goroutine 进行监控
 		s.monitorOnline,
 		s.monitorWTI,
@@ -33,28 +31,24 @@ func (s *sim)Run ()error {
 		s.runHttpServer,
 		s.PushBroadCast,
 	}
-	return ParallelRun(prepareParallelFunc... )
+	return ParallelRun(prepareParallelFunc...)
 }
 
-
 // Close  服务关闭
-func (s *sim)Close()error{
+func (s *sim) Close() error {
 	s.rpc.GracefulStop()
 	s.cancel()
 	return nil
 }
 
-
-
 // ParallelRun 并行的启动，使用goroutine 来进行管理
-func ParallelRun (parallels ... func()error)error{
+func ParallelRun(parallels ...func() error) error {
 	wg := errgroup.Group{}
-	for _,v:= range parallels {
+	for _, v := range parallels {
 		wg.Go(v)
 	}
 	return wg.Wait()
 }
-
 
 // monitorOnline 统计用户在线人数
 // 监控buffer 长度 并进行报警
@@ -62,7 +56,6 @@ func (s *sim) monitorOnline() error {
 	for {
 		n := int64(0)
 		for _, bck := range s.bs {
-			bck.Flush()
 			n += bck.Online()
 		}
 		s.ps.Store(n)
@@ -77,39 +70,37 @@ func (s *sim) monitorWTI() error {
 	if s.opt.SupportPluginWTI {
 		for {
 			FlushWTI()
-			time.Sleep(20*time.Second)
+			time.Sleep(20 * time.Second)
 		}
 	}
 	return nil
 }
 
 // runGrpcServer 监控rpc 服务
-func (s *sim)runGrpcServer ()error{
+func (s *sim) runGrpcServer() error {
 	listen, err := net.Listen("tcp", s.opt.ServerRpcPort)
-	if err !=nil {
-		log.Error(err.Error())
+	if err != nil {
+		return err
 	}
-	log.Info(fmt.Sprintf("sim : start GRPC server at %s "))
-	if err := s.rpc.Serve(listen);err !=nil {
-	log.Error(err.Error())
+	logging.Infof("sim : start GRPC server at %s ")
+	if err := s.rpc.Serve(listen); err != nil {
+		return err
 	}
 	return nil
 }
 
 // runHttpServer 运行httpserver
-func (s *sim)runHttpServer ()error{
+func (s *sim) runHttpServer() error {
 	listen, err := net.Listen("tcp", s.opt.ServerHttpPort)
-	if err !=nil {
-		log.Error(err.Error())
+	if err != nil {
+		return err
 	}
-	log.Info(fmt.Sprintf("im/run : start HTTP server at %s ", s.opt.ServerHttpPort))
-	if err := http.Serve(listen,s.http);err !=nil {
-		log.Error(err.Error())
+	logging.Infof("im/run : start HTTP server at %s ", s.opt.ServerHttpPort)
+	if err := http.Serve(listen, s.http); err != nil {
+		return err
 	}
 	return nil
 }
-
-
 
 // PushBroadCast 单独处理广播业务 todo 后续会将此方法进行修改，主要方向会将用户句柄按照优先级进行优化
 func (s *sim) PushBroadCast() error {
@@ -121,7 +112,7 @@ func (s *sim) PushBroadCast() error {
 				for _, v := range s.bs {
 					err := v.BroadCast(data, false)
 					if err != nil {
-						log.Error(err.Error())
+						logging.Error(err)
 					}
 				}
 			}

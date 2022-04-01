@@ -28,7 +28,7 @@ import (
 
 type Cli struct {
 	lastHeartBeatT int64
-	conn           *websocket.Conn
+	conn           Connect
 	reader         *http.Request
 	token          *string
 	closeFunc      sync.Once
@@ -118,7 +118,6 @@ func (c *Cli) ResetHeartBeatTime() {
 }
 
 func (c *Cli) Request() *http.Request {
-
 	return c.reader
 }
 
@@ -144,12 +143,13 @@ func (c *Cli) upgrade(w http.ResponseWriter, r *http.Request, readerSize, writeS
 
 func (c *Cli) send(data []byte) error {
 	if len(c.buf)*10 > cap(c.buf)*7 {
-		// 记录当前用户被丢弃的信息
-		//c.log.Infof(fmt.Sprintf("im/client: 用户消息通道堵塞 , token is %s ,len %v but user cap is %v",c.token,len(c.buf),cap(c.buf)))
-
-		return errors.New(fmt.Sprintf("im/client: too much data , user len %v but user cap is %s", len(c.buf), cap(c.buf)))
+		// todo 这里处理方式展示不够优雅，用户可以根据自身业务情况处理
+		// 丢弃用户消息，// 此时表明用户网络处于非常差的情况，后续将兼容
+		// 延迟重发，不过需要引入新的中间件进行消息存储，对于不是强一致性
+		// 的场景建议不用存储，在我实际公司业务，如果到这一步了就会让用户
+		// 断开连接，等用户网络好后先通过api同步数据
+		return errors.New(fmt.Sprintf("sim : too much data , user len %v but user cap is %s", len(c.buf), cap(c.buf)))
 	}
-
 	c.buf <- data
 	return nil
 }
@@ -167,7 +167,7 @@ func (c *Cli) start() error {
 func (c *Cli) sendProc() {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Errorf("sim : sendProc 发生panic %v",err)
+			logging.Errorf("sim : sendProc 发生panic %v", err)
 		}
 	}()
 	for {
@@ -177,7 +177,7 @@ func (c *Cli) sendProc() {
 			err := c.conn.WriteMessage(c.messageType, data)
 			spendTime := time.Since(starttime)
 			if spendTime > time.Duration(2)*time.Second {
-				logging.Warnf("sim : token '%v'网络状态不好，消息写入通道时间过长 :'%v'", c.token,spendTime)
+				logging.Warnf("sim : token '%v'网络状态不好，消息写入通道时间过长 :'%v'", c.token, spendTime)
 			}
 			if err != nil {
 				goto loop
@@ -199,17 +199,17 @@ func (c *Cli) close(forRetry ...bool) {
 	c.closeFunc.Do(func() {
 		close(c.done)
 		c.conn.Close()
-		if ! flag {
+		if !flag {
 			c.closeSig <- *c.token
 		}
-		logging.Infof("sim : token %v 正常下线",c.token)
+		logging.Infof("sim : token %v 正常下线", c.token)
 	})
 }
 
 func (c *Cli) recvProc() {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Errorf("sim : recvProc 发生panic %v",err)
+			logging.Errorf("sim : recvProc 发生panic %v", err)
 		}
 	}()
 	for {

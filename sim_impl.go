@@ -20,12 +20,10 @@ import (
 	"sim/pkg/logging"
 	"time"
 
-	im "sim/api/v1"
-	"sim/pkg/errors"
-
 	"github.com/zhenjl/cityhash"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc"
+	im "sim/api/v1"
 )
 
 type sim struct {
@@ -39,70 +37,6 @@ type sim struct {
 	opt    *Option
 }
 
-// Ping 发送ping消息
-func (s *sim) Ping(ctx context.Context, empty *im.Empty) (*im.Empty, error) {
-	return nil, nil
-}
-
-// Online 在线用户
-func (s *sim) Online(ctx context.Context, empty *im.Empty) (*im.OnlineReply,
-	error) {
-	num := s.ps.Load()
-	req := &im.OnlineReply{Number: num}
-	return req, nil
-}
-
-// Broadcast 给所有在线用户广播
-func (s *sim) Broadcast(ctx context.Context, req *im.BroadcastReq) (
-	*im.BroadcastReply, error) {
-	if len(s.buffer)*10 > 8*cap(s.buffer) {
-		return nil, errors.ErrUserBufferIsFull
-	}
-	s.buffer <- req.Data
-	return &im.BroadcastReply{
-		Size: int64(len(s.buffer)),
-	}, nil
-}
-
-func (s *sim) WTIDistribute(ctx context.Context, req *im.Empty) (
-	*im.WTIDistributeReply, error) {
-	distribute, err := Distribute()
-	if err != nil {
-		return nil, err
-	}
-
-	var result = map[string]*im.WTIDistribute{}
-	for k, v := range distribute {
-		data := &im.WTIDistribute{
-			Tag:        v.TagName,
-			Number:     v.Onlines,
-			CreateTime: v.CreateTime,
-		}
-		result[k] = data
-	}
-	return &im.WTIDistributeReply{
-		Data: result,
-	}, nil
-}
-
-func (s *sim) WTIBroadcast(ctx context.Context, req *im.BroadcastByWTIReq) (
-	*im.BroadcastReply, error) {
-	var err error
-	err = BroadCastByTarget(req.Data)
-	return &im.BroadcastReply{
-		Size: int64(len(s.buffer)),
-	}, err
-}
-
-func (s *sim) SendMessageToMultiple(ctx context.Context, req *im.SendMsgReq) (
-	*im.Empty, error) {
-	var err error
-	for _, token := range req.Token {
-		bs := s.bucket(token)
-		err = bs.Send(req.Data, token, false)
-	}
-	return &im.Empty{}, err
-}
 
 func New(opts *Option) *sim {
 	b := &sim{

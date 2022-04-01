@@ -15,6 +15,18 @@ package sim
 
 import "net/http"
 
+
+const (
+	waitTime = 1 << 7
+
+	ProtocolJson     = 1
+	ProtocolProtobuf = 2
+
+	MessageTypeText   = 1
+	MessageTypeBinary = 2
+)
+
+
 type Client interface {
 
 	// Send
@@ -42,12 +54,3 @@ type Client interface {
 	SetProtocol(int)
 }
 
-const (
-	waitTime = 1 << 7
-
-	ProtocolJson     = 1
-	ProtocolProtobuf = 2
-
-	MessageTypeText   = 1
-	MessageTypeBinary = 2
-)

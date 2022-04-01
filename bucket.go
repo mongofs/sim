@@ -20,31 +20,20 @@ import (
 type Bucket interface {
 
 	// Send 发送消息给某个token，并且标识是否需要ACK回执
-	Send(data []byte, token string ,Ack bool)error
+	Send(data []byte, token string, Ack bool) error
 
 	// BroadCast 发送消息给这个bucket的全部用户，并且标识是否需要ACK回执
-	BroadCast(data []byte ,Ack bool)error
+	BroadCast(data []byte, Ack bool) error
 
 	// OffLine 下线某个用户
 	OffLine(token string)
 
 	// Register user to basket
-	Register(cli Client,token string)error
-
-	//IsOnline Judge whether the user is online
-	IsOnline(token string)bool
+	Register(cli Client, token string) error
 
 	// Online 查看在线用户有多少个
-	Online()int64
+	Online() int64
 
 
-	Flush()
-
-
-	NotifyBucketConnectionIsClosed()chan <- string
-
-
-	CreateConn(w http.ResponseWriter,r * http.Request,token string)(Client,error)
+	CreateConn(w http.ResponseWriter, r *http.Request, token string) (Client, error)
 }
-
-

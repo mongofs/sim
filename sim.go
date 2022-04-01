@@ -22,7 +22,7 @@ const (
 	RouterConnection = "/conn"
 	RouterHealth     = "/health"
 
-	ValidateKey      = "token"
+	ValidateKey = "token"
 )
 
 type Sim interface {
