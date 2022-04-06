@@ -11,21 +11,25 @@
  * limitations under the License.
  */
 
-package sim
+package main
 
 import (
 	"fmt"
 	"math/rand"
-	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 var (
-	r = rand.New(rand.NewSource(time.Now().Unix()))
-	Address = ""
+	r       = rand.New(rand.NewSource(time.Now().Unix()))
 )
+
+func main() {
+	config := InitConfig()
+	RunServer(config)
+	time.Sleep(time.Duration(config.keepTime )* time.Second )
+}
 
 // RandString 生成随机字符串做Token, 注意的是这里生成token的规则，
 // 需要你能够在validate的接口实现中自己能解出来
@@ -38,35 +42,31 @@ func RandString(len int) string {
 	return string(bytes)
 }
 
-
-func TestBucket_CreateConn(t *testing.T) {
-	tests := []struct{
-		tag string
-		number int
-	}{
-		{
-			tag: "v1",
-			number: 50,
-		},
-		{
-			tag: "v2",
-			number: 60,
-		},
+// Tokens 获取tokens
+func Tokens(numbers int) []string {
+	var tokens []string
+	for i := 0; i < numbers; i++ {
+		tokens = append(tokens, RandString(20))
 	}
-	for _,v := range tests{
-		for i :=0 ;i< v.number;i++ {
-			go CreateMockClient(v.tag,"")
-		}
-	}
-	time.Sleep(1000 * time.Second)
+	return tokens
 }
 
+// RunServer 启动服务
+func RunServer(cof *config) {
+	tokens := Tokens(cof.keepTime)
+	for k, v := range tokens {
+		if k%cof.concurrency == 0 {
+			time.Sleep(1 * time.Second)
+		}
+		go CreateMockClient(cof.host,"1.3", v)
+	}
+}
 
-// CreateClient 图形界面化也可以使用这个网站进行查看 http://www.baidu.com/conn?token=1080&version=v.10
-// 模拟连接
-func CreateMockClient(version ,token string) error{
+// CreateMockClient 图形界面化也可以使用这个网站进行查看 http://www.baidu.com/conn?token=1080&version=v.10
+// 模拟连接，在此包内可
+func CreateMockClient(Host ,version, token string) error {
 	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial(fmt.Sprintf(Address+"?token=%s&version=%s", token,version), nil)
+	conn, _, err := dialer.Dial(fmt.Sprintf(host+"?token=%s&version=%s", token, version), nil)
 	if nil != err {
 		return err
 	}
@@ -78,7 +78,7 @@ func CreateMockClient(version ,token string) error{
 		}
 		switch messageType {
 		case websocket.TextMessage:
-			fmt.Printf( "content : %v \r\n",string(messageData))
+			fmt.Printf("content : %v \r\n", string(messageData))
 		case websocket.BinaryMessage:
 		default:
 		}

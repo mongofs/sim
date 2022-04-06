@@ -34,15 +34,15 @@ const (
 type Protocol int
 
 const (
-	ProtocolJson     Protocol = 1
-	ProtocolProtobuf Protocol = 2
+	ProtocolJson     Protocol = iota +1
+	ProtocolProtobuf
 )
 
 type MessageType int
 
 const (
-	MessageTypeText   MessageType = 1
-	MessageTypeBinary MessageType = 2
+	MessageTypeText   MessageType = iota + 1
+	MessageTypeBinary
 )
 
 // 当前这个连接基于 github.com/gorilla/websocket
@@ -50,23 +50,29 @@ type gorilla struct {
 	once   sync.Once
 	con    *websocket.Conn
 	token  *string
+	// buffer 这里是用户进行设置缓冲区的，这里和websocket的缓冲区不同的是，这里的内容是单独
+	// 按照消息个数来缓冲的，而websocket是基于tcp的缓冲区进行字节数组缓冲，本质是不同
+	// 的概念，值得注意的是，slice是指针类型，意味着传输的内容是可以很大的，在chan层
+	// 表示仅仅是8字节的指针，建议单个传输内容不要太大，否则在用户下发的过程中如果用户网络
+	// 不是很好，TCP连接写入能力较差，内容都会堆积在内存中导致内存上涨，这个参数也建议不要
+	// 设置太大，建议在8个
 	buffer chan []byte
-	output chan []byte
 
-	// 这里是唯一一个伴随业务性质的结构，值得注意的是，在我们实际应用场景中
+	// heartBeatTime 这里是唯一一个伴随业务性质的1结构，值得注意的是，在我们实际应用场景中
 	// 这里会容易出错，如果我将连接本身close掉，然后将连接标示放入closeChan，此时
 	// 如果通道阻塞，本次连接的用户拿着同样的token进行连接，那么就会出现新的
 	// 连接在bucket不存在的情况，建议做法是：最后在客户端能保证，每次发起连接
 	// 都是一个全新的token，这样就能完全隔离掉这种情况
-
 	// 由于本身业务复杂性，客户端某些功能不能实现，那么就只能采取：建立连接在
 	// 之前先查后写，目前默认采取这种方案，但是又会伴随另外一个问题： 如果旧链接
 	// 依旧在线，那么就得发送信号释放old conn ，整体性能就会降低
-
 	// 针对第二种，我们踩过坑： 前台调用接口进入具体聊天室，聊天室内用户一直停留
 	// 用户连接死掉或者被客观下线，前台发起重连，然后旧的连接下线新的链接收不到消息
-
 	heartBeatTime int64
+
+	// closeChan 是一个上层传入的一个chan，当用户连接关闭，可以将本身token传入closeChan
+	// 通知到bucket层以及其他层进行处理，但是bucket作为connect管理单元，在做上层channel监听
+	// 的时候尽量不要读取closeChan
 	closeChan     chan<- string
 	protocol      Protocol    // json /protobuf
 	messageType   MessageType // text /binary
@@ -77,8 +83,7 @@ func NewGorilla(token *string, closeChan chan<- string, option *Option, w http.R
 		once:          sync.Once{},
 		con:           nil,
 		token:         token,
-		buffer:        make(chan []byte, 10),
-		output:        make(chan []byte, 0),
+		buffer:        make(chan []byte, option.ClientBufferSize),
 		heartBeatTime: time.Now().Unix(),
 		closeChan:     closeChan,
 		protocol:      option.ClientProtocol,
@@ -158,14 +163,14 @@ func (c *gorilla) handlerProtocol(data []byte) error {
 func (c *gorilla) monitorSend() {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Errorf("sim : sendProc 发生panic %v", err)
+			logging.Errorf("sim : monitorSend 发生panic %v", err)
 		}
 	}()
 	for {
 		data := <-c.buffer
-		starttime := time.Now()
+		startTime := time.Now()
 		err := c.con.WriteMessage(int(c.messageType), data)
-		spendTime := time.Since(starttime)
+		spendTime := time.Since(startTime)
 		if spendTime > time.Duration(2)*time.Second {
 			logging.Warnf("sim : token '%v'网络状态不好，消息写入通道时间过长 :'%v'", c.token, spendTime)
 		}
@@ -181,7 +186,7 @@ loop:
 func (c *gorilla) monitorReceive(handleReceive Receive) {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Errorf("sim : recvProc 发生panic %v", err)
+			logging.Errorf("sim : monitorReceive 发生panic %v", err)
 		}
 	}()
 	for {
@@ -197,7 +202,6 @@ loop:
 
 func (c *gorilla) close(forRetry bool) {
 	c.once.Do(func() {
-		close(c.output)
 		if !forRetry {
 			c.closeChan <- *c.token
 		}
