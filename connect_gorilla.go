@@ -78,7 +78,7 @@ type gorilla struct {
 	messageType   MessageType // text /binary
 }
 
-func NewGorilla(token *string, closeChan chan<- string, option *Option, w http.ResponseWriter, r *http.Request,handlerReceive Receive) (Connect, error) {
+func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.ResponseWriter, r *http.Request,handlerReceive Receive) (Connect, error) {
 	result := &gorilla{
 		once:          sync.Once{},
 		con:           nil,

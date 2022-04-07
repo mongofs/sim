@@ -66,10 +66,10 @@ type bucket struct {
 	//		time.Sleep(10 * time.Second)
 	//	}
 
-	opts *Option
+	opts *Options
 }
 
-func newBucket(option *Option) Bucket {
+func newBucket(option *Options) Bucket {
 	res := &bucket{
 		rw:       sync.RWMutex{},
 		np:       &atomic.Int64{},

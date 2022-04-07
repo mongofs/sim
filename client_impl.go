@@ -23,7 +23,7 @@ type Cli struct {
 }
 
 
-func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, token *string, option *Option) (Client, error) {
+func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, token *string, option *Options) (Client, error) {
 	res := &Cli{
 		reader:        r,
 	}
