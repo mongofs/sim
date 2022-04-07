@@ -16,14 +16,17 @@ package sim
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
-	"sim/pkg/logging"
 	"time"
+
+	im "sim/api/v1"
+	"sim/pkg/logging"
 
 	"github.com/zhenjl/cityhash"
 	"go.uber.org/atomic"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	im "sim/api/v1"
 )
 
 type sim struct {
@@ -34,60 +37,19 @@ type sim struct {
 
 	buffer chan []byte
 	cancel func()
-	opt    *Option
-}
-
-func New(opts *Option) *sim {
-	b := &sim{
-		ps:  atomic.Int64{},
-		opt: opts,
-	}
-	b.buffer = make(chan []byte, opts.BroadCastBuffer)
-	b.ps.Store(0)
-	// 准备创建bucket
-	b.prepareBucket()
-	// 创建grpcServer
-	b.prepareGrpcServer()
-	// 创建httpServer
-	b.prepareHttpServer()
-	return b
-}
-
-// prepareBucket 构建bucket
-func (h *sim) prepareBucket() {
-	h.bs = make([]Bucket, h.opt.ServerBucketNumber)
-	_, cancel := context.WithCancel(context.Background())
-	h.cancel = cancel
-	for i := 0; i < h.opt.ServerBucketNumber; i++ {
-		h.bs[i] = newBucket(h.opt)
-	}
-}
-
-// prepareGrpcServer 构建grpc 服务注册
-func (b *sim) prepareGrpcServer() {
-	b.rpc = grpc.NewServer()
-	im.RegisterBasicServer(b.rpc, b)
-}
-
-// prepareHttpServer 构建http服务
-func (b *sim) prepareHttpServer() {
-	b.http = http.NewServeMux()
-	b.initRouter()
+	opt    *Options
 }
 
 func (s *sim) bucket(token string) Bucket {
-	idx := Index(token, uint32(s.opt.ServerBucketNumber))
+	idx := s.Index(token, uint32(s.opt.ServerBucketNumber))
 	return s.bs[idx]
 }
 
-func (s *sim) initRouter() error {
-	s.http.HandleFunc(RouterHealth, handlerHealth)
-	s.http.HandleFunc(RouterConnection, s.Connection)
-	return nil
+func (s *sim) Index(token string, size uint32) uint32 {
+	return cityhash.CityHash32([]byte(token), uint32(len(token))) % size
 }
 
-//Connection  create  connection
-func (s *sim) Connection(writer http.ResponseWriter, r *http.Request) {
+func (s *sim) connection(writer http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	defer func() {
 		escape := time.Since(now)
@@ -132,6 +94,114 @@ func (s *sim) Connection(writer http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *sim) handlerHealth(w http.ResponseWriter, r *http.Request) {
+	res := &Response{
+		w:      w,
+		Status: 200,
+		Data:   "ok",
+	}
+	res.SendJson()
+}
+
+func (s *sim) monitorOnline() error {
+	for {
+		n := int64(0)
+		for _, bck := range s.bs {
+			n += bck.Online()
+		}
+		s.ps.Store(n)
+		time.Sleep(10 * time.Second)
+	}
+	return nil
+}
+
+func (s *sim) monitorWTI() error {
+	if s.opt.SupportPluginWTI {
+		for {
+			FlushWTI()
+			time.Sleep(20 * time.Second)
+		}
+	}
+	return nil
+}
+
+func (s *sim) runGrpcServer() error {
+	listen, err := net.Listen("tcp", s.opt.ServerRpcPort)
+	if err != nil {
+		return err
+	}
+	logging.Infof("sim : start GRPC server at %s ")
+	if err := s.rpc.Serve(listen); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *sim) runHttpServer() error {
+	listen, err := net.Listen("tcp", s.opt.ServerHttpPort)
+	if err != nil {
+		return err
+	}
+	logging.Infof("im/run : start HTTP server at %s ", s.opt.ServerHttpPort)
+	if err := http.Serve(listen, s.http); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *sim) handlerBroadCast() error {
+	wg := errgroup.Group{}
+	for i := 0; i < s.opt.BroadCastHandler; i++ {
+		wg.Go(func() error {
+			for {
+				data := <-s.buffer
+				for _, v := range s.bs {
+					err := v.BroadCast(data, false)
+					if err != nil {
+						logging.Error(err)
+					}
+				}
+			}
+			return nil
+		})
+	}
+	return wg.Wait()
+}
+
+func (s *sim) close() error {
+	s.rpc.GracefulStop()
+	s.cancel()
+	return nil
+}
+
+
+func initSim(opts *Options) *sim {
+	b := &sim{
+		ps:  atomic.Int64{},
+		opt: opts,
+	}
+	b.buffer = make(chan []byte, opts.BroadCastBuffer)
+	b.ps.Store(0)
+
+	// prepare buckets
+	b.bs = make([]Bucket, b.opt.ServerBucketNumber)
+	_, cancel := context.WithCancel(context.Background())
+	b.cancel = cancel
+	for i := 0; i < b.opt.ServerBucketNumber; i++ {
+		b.bs[i] = newBucket(b.opt)
+	}
+
+	// prepare grpc
+	b.rpc = grpc.NewServer()
+	im.RegisterBasicServer(b.rpc, b)
+
+	// prepare http
+	b.http = http.NewServeMux()
+	b.http.HandleFunc(RouterHealth, b.handlerHealth)
+	b.http.HandleFunc(RouterConnection, b.connection)
+	return b
+}
+
 type Response struct {
 	w      http.ResponseWriter
 	Status int         `json:"status"`
@@ -143,17 +213,4 @@ func (r *Response) SendJson() (int, error) {
 	r.w.Header().Set("Content-Type", "application/json")
 	r.w.WriteHeader(r.Status)
 	return r.w.Write(resp)
-}
-
-func handlerHealth(w http.ResponseWriter, r *http.Request) {
-	res := &Response{
-		w:      w,
-		Status: 200,
-		Data:   "ok",
-	}
-	res.SendJson()
-}
-
-func Index(token string, size uint32) uint32 {
-	return cityhash.CityHash32([]byte(token), uint32(len(token))) % size
 }

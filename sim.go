@@ -13,13 +13,16 @@
 
 package sim
 
+import (
+	"golang.org/x/sync/errgroup"
+	"sim/pkg/logging"
+)
+
 const (
 	RouterConnection = "/conn"
 	RouterHealth     = "/health"
-
-	ValidateKey = "token"
+	ValidateKey      = "token"
 )
-
 
 // Discover 可以在服务启动停止的时候自动想注册中心进行注册和注销，这个实现是可选的，具体可
 // 查看option的参数，如果没有discover 就是一个单节点，也是可以启动。但是建议你在生产环境
@@ -45,4 +48,56 @@ type Validate interface {
 // 自身的业务需求进行处理
 type Receive interface {
 	Handle(conn Connect, data []byte)
+}
+
+func server(s *sim) error {
+	var prepareParallelFunc = []func() error{
+		// 启用单独goroutine 进行监控
+		s.monitorOnline,
+		s.monitorWTI,
+		// 启用单独goroutine 进行运行
+		s.runGrpcServer,
+		s.runHttpServer,
+		s.handlerBroadCast,
+	}
+	return parallel(prepareParallelFunc...)
+}
+
+func parallel(parallels ...func() error) error {
+	wg := errgroup.Group{}
+	for _, v := range parallels {
+		wg.Go(v)
+	}
+	return wg.Wait()
+}
+
+func Run(validate Validate, receive Receive, opts ...OptionFunc) (err error) {
+	options := LoadOptions(validate, receive, opts...)
+
+	logging.Debugf("default logging level is %s", logging.LogLevel())
+
+	var (
+		logger logging.Logger
+		flush  func() error
+	)
+	if options.LogPath != "" {
+		if logger, flush, err = logging.CreateLoggerAsLocalFile(options.LogPath, options.LogLevel); err != nil {
+			return
+		}
+	} else {
+		logger = logging.GetDefaultLogger()
+	}
+	if options.Logger == nil {
+		options.Logger = logger
+	}
+	defer func() {
+		if flush != nil {
+			_ = flush()
+		}
+		logging.Cleanup()
+	}()
+
+	// prepare the sim
+	sim := initSim(options)
+	return server(sim)
 }
