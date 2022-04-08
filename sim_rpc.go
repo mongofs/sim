@@ -25,16 +25,14 @@ func (s *sim) Ping(ctx context.Context, empty *im.Empty) (*im.Empty, error) {
 }
 
 // Online 在线用户
-func (s *sim) Online(ctx context.Context, empty *im.Empty) (*im.OnlineReply,
-	error) {
+func (s *sim) Online(ctx context.Context, empty *im.Empty) (*im.OnlineReply, error) {
 	num := s.ps.Load()
 	req := &im.OnlineReply{Number: num}
 	return req, nil
 }
 
 // Broadcast 给所有在线用户广播
-func (s *sim) Broadcast(ctx context.Context, req *im.BroadcastReq) (
-	*im.BroadcastReply, error) {
+func (s *sim) Broadcast(ctx context.Context, req *im.BroadcastReq) (*im.BroadcastReply, error) {
 	if len(s.buffer)*10 > 8*cap(s.buffer) {
 		return nil, errors.ErrUserBufferIsFull
 	}
@@ -44,8 +42,29 @@ func (s *sim) Broadcast(ctx context.Context, req *im.BroadcastReq) (
 	}, nil
 }
 
-func (s *sim) WTIDistribute(ctx context.Context, req *im.Empty) (
-	*im.WTIDistributeReply, error) {
+func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp, error) {
+	var err error
+	fail := map[string]string{}
+	var success []string
+	for _, token := range req.Token {
+		bs := s.bucket(token)
+		err = bs.Send(req.Data, token, false)
+		if err!=nil {
+			fail[token]= err.Error()
+		}else{
+			success = append(success, token)
+		}
+	}
+
+	result := &im.SendMsgResp{
+		MsgID:   "",
+		Filed:   &im.Load{Token: fail},
+		Success: success,
+	}
+	return result, err
+}
+
+func (s *sim) WTIDistribute(ctx context.Context, req *im.Empty) (*im.WTIDistributeReply, error) {
 	distribute, err := Distribute()
 	if err != nil {
 		return nil, err
@@ -65,21 +84,10 @@ func (s *sim) WTIDistribute(ctx context.Context, req *im.Empty) (
 	}, nil
 }
 
-func (s *sim) WTIBroadcast(ctx context.Context, req *im.BroadcastByWTIReq) (
-	*im.BroadcastReply, error) {
+func (s *sim) WTIBroadcast(ctx context.Context, req *im.BroadcastByWTIReq) (*im.BroadcastReply, error) {
 	var err error
 	err = BroadCastByTarget(req.Data)
 	return &im.BroadcastReply{
 		Size: int64(len(s.buffer)),
 	}, err
-}
-
-func (s *sim) SendMessageToMultiple(ctx context.Context, req *im.SendMsgReq) (
-	*im.Empty, error) {
-	var err error
-	for _, token := range req.Token {
-		bs := s.bucket(token)
-		err = bs.Send(req.Data, token, false)
-	}
-	return &im.Empty{}, err
 }

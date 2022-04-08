@@ -15,12 +15,13 @@ package sim
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/pkg/errors"
 	"net/http"
 	"sync"
 	"time"
 
 	api "sim/api/v1"
-	"sim/pkg/errors"
 	"sim/pkg/logging"
 
 	"github.com/golang/protobuf/proto"
@@ -109,7 +110,7 @@ func (c *gorilla) Send(data []byte) error {
 		// 延迟重发，不过需要引入新的中间件进行消息存储，对于不是强一致性
 		// 的场景建议不用存储，在我实际公司业务，如果到这一步了就会让用户
 		// 断开连接，等用户网络好后先通过api同步数据
-		return errors.ErrUserBufferIsFull
+		return errors.New(fmt.Sprintf("user buffer is %d ,but the length of content is %d",cap(c.buffer),len(c.buffer)))
 	}
 	c.handlerProtocol(data)
 	return nil

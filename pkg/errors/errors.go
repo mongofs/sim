@@ -20,7 +20,7 @@ import (
 
 var (
 	ErrUserExist =errors.New("im/bucket : Cannot login repeatedly")
-	ErrCliISNil  =errors.New("im/bucket : cli is nil")
+	ErrCliISNil  =errors.New("im/bucket : client is not online ")
 )
 
 
