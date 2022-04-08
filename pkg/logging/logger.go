@@ -13,17 +13,12 @@
 
 package logging
 
-
 import (
-	"errors"
-	"os"
-	"strconv"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
+	"os"
+	"strconv"
 )
-
 
 var (
 	flushLogs           func() error
@@ -35,26 +30,14 @@ var (
 type Level = zapcore.Level
 
 const (
-	// DebugLevel logs are typically voluminous, and are usually disabled in
-	// production.
 	DebugLevel Level = iota - 1
-	// InfoLevel is the default logging priority.
 	InfoLevel
-	// WarnLevel logs are more important than Info, but don't need individual
-	// human review.
 	WarnLevel
-	// ErrorLevel logs are high-priority. If an application is running smoothly,
-	// it shouldn't generate any error-level logs.
 	ErrorLevel
-	// DPanicLevel logs are particularly important errors. In development the
-	// logger panics after writing the message.
 	DPanicLevel
-	// PanicLevel logs a message, then panics.
 	PanicLevel
-	// FatalLevel logs a message, then calls os.Exit(1).
 	FatalLevel
 )
-
 
 
 func init() {
@@ -67,70 +50,35 @@ func init() {
 		defaultLoggingLevel = Level(loggingLevel)
 	}
 
-	// Initializes the inside default logger of sim.
+	// fileName 不要后缀
 	fileName := os.Getenv("LOGGINH_FILE")
 	if len(fileName) == 0 {
-		fileName = "./log/steven.log"
+		fileName = "sim"
 	}
-	if len(fileName) > 0 {
-		var err error
-		defaultLogger, flushLogs, err = CreateLoggerAsLocalFile(fileName, defaultLoggingLevel)
-		if err != nil {
-			panic("invalid LOGGINH_FILE, " + err.Error())
-		}
-	} else {
-		cfg := zap.NewDevelopmentConfig()
-		cfg.Level = zap.NewAtomicLevelAt(defaultLoggingLevel)
-		cfg.EncoderConfig.EncodeTime = zapcore.RFC3339NanoTimeEncoder
-		zapLogger, _ := cfg.Build()
-		defaultLogger = zapLogger.Sugar()
-	}
+
+	core := getCores(OutputStdout, fileName)
+	caller := zap.AddCaller()
+	development := zap.Development()
+	zaplog := zap.New(core, caller, development)
+	defaultLogger= &log{zaplog}
 }
 
-func getEncoder() zapcore.Encoder {
-	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.EncodeTime = zapcore.RFC3339NanoTimeEncoder
-	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	return zapcore.NewConsoleEncoder(encoderConfig)
+// FlushLogPath
+func FlushLogPath(logPath,logFile string){
+	core := getCores(OutputStdout, logFile)
+	caller := zap.AddCaller()
+	development := zap.Development()
+	zaplog := zap.New(core, caller, development)
+	defaultLogger= &log{zaplog}
 }
+
+
 
 // GetDefaultLogger returns the default logger.
 func GetDefaultLogger() Logger {
 	return defaultLogger
 }
 
-// LogLevel tells what the default logging level is.
-func LogLevel() string {
-	return defaultLoggingLevel.String()
-}
-
-// CreateLoggerAsLocalFile setups the logger by local file path.
-func CreateLoggerAsLocalFile(localFilePath string, logLevel Level) (logger Logger, flush func() error, err error) {
-	if len(localFilePath) == 0 {
-		return nil, nil, errors.New("invalid local logger path")
-	}
-
-	// lumberjack.Logger is already safe for concurrent use, so we don't need to lock it.
-	lumberJackLogger := &lumberjack.Logger{
-		Filename:   localFilePath,
-		MaxSize:    100, // megabytes
-		MaxBackups: 2,
-		MaxAge:     15, // days
-	}
-
-	encoder := getEncoder()
-	ws := zapcore.AddSync(lumberJackLogger)
-	zapcore.Lock(ws)
-
-	levelEnabler := zap.LevelEnablerFunc(func(level Level) bool {
-		return level >= logLevel
-	})
-	core := zapcore.NewCore(encoder, ws, levelEnabler)
-	zapLogger := zap.New(core, zap.AddCaller())
-	logger = zapLogger.Sugar()
-	flush = zapLogger.Sync
-	return
-}
 
 // Logger is used for logging formatted messages.
 type Logger interface {
@@ -145,8 +93,6 @@ type Logger interface {
 	// Fatalf logs messages at FATAL level.
 	Fatalf(format string, args ...interface{})
 }
-
-
 
 // Cleanup does something windup for logger, like closing, flushing, etc.
 func Cleanup() {
@@ -186,5 +132,6 @@ func Errorf(format string, args ...interface{}) {
 func Fatalf(format string, args ...interface{}) {
 	defaultLogger.Fatalf(format, args...)
 }
+
 
 

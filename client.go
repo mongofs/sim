@@ -41,3 +41,27 @@ type Client interface {
 	// SetProtocol 设置用户接收消息的协议：
 	SetProtocol(protocol Protocol)
 }
+
+
+type Cli struct {
+	Connect
+	reader        *http.Request
+}
+
+
+func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, token *string, option *Options) (Client, error) {
+	res := &Cli{
+		reader:        r,
+	}
+
+	conn, err := NewGorilla(token, closeSig, option, w, r,option.ServerReceive)
+	if err != nil {
+		return nil, err
+	}
+	res.Connect = conn
+	return res, nil
+}
+
+func (c *Cli) Request() *http.Request {
+	return c.reader
+}

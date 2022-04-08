@@ -217,6 +217,12 @@ func WithLogger(logger logging.Logger) OptionFunc {
 	}
 }
 
+func WithLoggerLevel(level logging.Level) OptionFunc{
+	return func(b *Options) {
+		b.LogLevel = level
+	}
+}
+
 
 
 func WithDiscover(discover Discover) OptionFunc {

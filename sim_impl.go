@@ -32,7 +32,7 @@ import (
 type sim struct {
 	http *http.ServeMux
 	rpc  *grpc.Server
-	bs   []Bucket
+	bs   []*bucket
 	ps   atomic.Int64
 
 	buffer chan []byte
@@ -40,7 +40,7 @@ type sim struct {
 	opt    *Options
 }
 
-func (s *sim) bucket(token string) Bucket {
+func (s *sim) bucket(token string) *bucket {
 	idx := s.Index(token, uint32(s.opt.ServerBucketNumber))
 	return s.bs[idx]
 }
@@ -75,7 +75,7 @@ func (s *sim) connection(writer http.ResponseWriter, r *http.Request) {
 	}
 	// validate token
 	bs := s.bucket(token)
-	cli, err := bs.CreateConn(writer, r, token)
+	cli, err := bs.createConn(writer, r, token)
 	if err != nil {
 		res.Status = 400
 		res.Data = err.Error()
@@ -156,7 +156,7 @@ func (s *sim) handlerBroadCast() error {
 			for {
 				data := <-s.buffer
 				for _, v := range s.bs {
-					err := v.BroadCast(data, false)
+					err := v.broadCast(data, false)
 					if err != nil {
 						logging.Error(err)
 					}
@@ -184,7 +184,7 @@ func initSim(opts *Options) *sim {
 	b.ps.Store(0)
 
 	// prepare buckets
-	b.bs = make([]Bucket, b.opt.ServerBucketNumber)
+	b.bs = make([]*bucket, b.opt.ServerBucketNumber)
 	_, cancel := context.WithCancel(context.Background())
 	b.cancel = cancel
 	for i := 0; i < b.opt.ServerBucketNumber; i++ {

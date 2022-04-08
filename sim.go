@@ -74,16 +74,12 @@ func parallel(parallels ...func() error) error {
 func Run(validate Validate, receive Receive, opts ...OptionFunc) (err error) {
 	options := LoadOptions(validate, receive, opts...)
 
-	logging.Debugf("default logging level is %s", logging.LogLevel())
-
 	var (
 		logger logging.Logger
 		flush  func() error
 	)
 	if options.LogPath != "" {
-		if logger, flush, err = logging.CreateLoggerAsLocalFile(options.LogPath, options.LogLevel); err != nil {
-			return
-		}
+		logging.FlushLogPath(options.LogPath,"sim")
 	} else {
 		logger = logging.GetDefaultLogger()
 	}

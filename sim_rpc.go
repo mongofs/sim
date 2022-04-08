@@ -48,7 +48,7 @@ func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp,
 	var success []string
 	for _, token := range req.Token {
 		bs := s.bucket(token)
-		err = bs.Send(req.Data, token, false)
+		err = bs.send(req.Data, token, false)
 		if err!=nil {
 			fail[token]= err.Error()
 		}else{
