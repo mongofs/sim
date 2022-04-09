@@ -23,13 +23,13 @@ import (
 type MockReceive struct {}
 
 func (m MockReceive) Handle(conn Connect, data []byte) {
-	panic("implement me")
+	conn.ReFlushHeartBeatTime()
 }
 
 type MockValidate struct {}
 
 func (m MockValidate) Validate(token string) error {
-	panic("implement me")
+	return nil
 }
 
 func (m MockValidate) ValidateFailed(err error, cli Client) {
@@ -37,7 +37,7 @@ func (m MockValidate) ValidateFailed(err error, cli Client) {
 }
 
 func (m MockValidate) ValidateSuccess(cli Client) {
-	panic("implement me")
+	return
 }
 
 
@@ -50,4 +50,10 @@ func TestRun(t *testing.T) {
 			}
 			Run(&MockValidate{},&MockReceive{},optionfunc...)
 	})
+}
+
+
+
+func TestName(t *testing.T) {
+
 }

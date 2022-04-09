@@ -18,11 +18,6 @@ import (
 	"sim/pkg/logging"
 )
 
-const (
-	RouterConnection = "/conn"
-	RouterHealth     = "/health"
-	ValidateKey      = "token"
-)
 
 // Discover 可以在服务启动停止的时候自动想注册中心进行注册和注销，这个实现是可选的，具体可
 // 查看option的参数，如果没有discover 就是一个单节点，也是可以启动。但是建议你在生产环境
@@ -73,13 +68,12 @@ func parallel(parallels ...func() error) error {
 
 func Run(validate Validate, receive Receive, opts ...OptionFunc) (err error) {
 	options := LoadOptions(validate, receive, opts...)
-
 	var (
 		logger logging.Logger
 		flush  func() error
 	)
 	if options.LogPath != "" {
-		logging.FlushLogPath(options.LogPath,"sim")
+		logging.FlushLogPath(options.LogPath,"test",logging.OutputStdout)
 	} else {
 		logger = logging.GetDefaultLogger()
 	}

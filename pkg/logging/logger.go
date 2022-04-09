@@ -21,8 +21,12 @@ import (
 )
 
 var (
+	defaultLogName string
+	defaultLogPath string
+
 	flushLogs           func() error
 	defaultLogger       Logger
+	defaultOutput 		output
 	defaultLoggingLevel Level
 )
 
@@ -39,8 +43,16 @@ const (
 	FatalLevel
 )
 
+type output int
+
+const (
+	OutputStdout output = iota + 1
+	OutputFile
+)
+
 
 func init() {
+	// logging level
 	lvl := os.Getenv("LOGGING_LEVEL")
 	if len(lvl) > 0 {
 		loggingLevel, err := strconv.ParseInt(lvl, 10, 8)
@@ -50,13 +62,21 @@ func init() {
 		defaultLoggingLevel = Level(loggingLevel)
 	}
 
-	// fileName 不要后缀
-	fileName := os.Getenv("LOGGINH_FILE")
-	if len(fileName) == 0 {
-		fileName = "sim"
+	// filename
+	defaultLogName = os.Getenv("LOGGINH_FILE")
+	if len(defaultLogName) == 0 {
+		defaultLogName = "sim"
 	}
 
-	core := getCores(OutputStdout, fileName)
+	// filepath
+	defaultLogPath = os.Getenv("LOGGING_FILE_PATH")
+	if len(defaultLogPath) == 0 {
+		defaultLogPath = "./log"
+	}
+
+	// output
+	defaultOutput = OutputStdout
+	core := getCores(defaultOutput, defaultLogPath)
 	caller := zap.AddCaller()
 	development := zap.Development()
 	zaplog := zap.New(core, caller, development)
@@ -64,12 +84,19 @@ func init() {
 }
 
 // FlushLogPath
-func FlushLogPath(logPath,logFile string){
-	core := getCores(OutputStdout, logFile)
+func FlushLogPath(logPath,logFile string ,output output){
+	if logFile == "" {
+		logFile = defaultLogName
+	}
+
+	if logPath == "" {
+		logPath = defaultLogPath
+	}
+	core := getCores(output, logFile)
 	caller := zap.AddCaller()
 	development := zap.Development()
-	zaplog := zap.New(core, caller, development)
-	defaultLogger= &log{zaplog}
+	zapLog := zap.New(core, caller, development)
+	defaultLogger= &log{zapLog}
 }
 
 
@@ -115,7 +142,7 @@ func Debugf(format string, args ...interface{}) {
 
 // Infof logs messages at INFO level.
 func Infof(format string, args ...interface{}) {
-	defaultLogger.Infof(format, args...)
+	defaultLogger.Infof(format, args)
 }
 
 // Warnf logs messages at WARN level.

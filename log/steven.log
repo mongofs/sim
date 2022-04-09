@@ -1,6 +1,0 @@
-2022-04-08T18:12:01.881236+08:00	INFO	logging/logger.go:172	im/run : start HTTP server at :8081 
-2022-04-08T18:12:01.88121+08:00	INFO	logging/logger.go:172	sim : start GRPC server at %s 
-2022-04-08T18:20:34.196852+08:00	INFO	logging/logger.go:172	sim : start GRPC server at %s 
-2022-04-08T18:20:34.196883+08:00	INFO	logging/logger.go:172	im/run : start HTTP server at :8081 
-2022-04-08T18:20:59.196289+08:00	INFO	logging/logger.go:172	im/run : start HTTP server at :8081 
-2022-04-08T18:20:59.196289+08:00	INFO	logging/logger.go:172	sim : start GRPC server at %s 

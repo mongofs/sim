@@ -15,11 +15,12 @@ package logging
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"os"
-	"time"
 )
 
 type log struct {
@@ -31,7 +32,7 @@ func (l log) Debugf(format string, args ...interface{}) {
 }
 
 func (l log) Infof(format string, args ...interface{}) {
-	l.Info(fmt.Sprintf(format,args))
+	l.Info(fmt.Sprintf(format,args...))
 }
 
 func (l log) Warnf(format string, args ...interface{}) {
@@ -46,12 +47,7 @@ func (l log) Fatalf(format string, args ...interface{}) {
 	l.Fatal(fmt.Sprintf(format,args))
 }
 
-type output int
 
-const (
-	OutputStdout output = iota + 1
-	OutputFile
-)
 
 
 

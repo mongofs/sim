@@ -67,7 +67,7 @@ func (s *sim) connection(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Form.Get(ValidateKey)
+	token := r.Form.Get(s.opt.RouterValidateKey)
 	if token == "" {
 		res.Status = 400
 		res.Data = "token validate error"
@@ -104,22 +104,26 @@ func (s *sim) handlerHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *sim) monitorOnline() error {
+	var interval = 10
+	logging.Infof("sim : start monitor online server , interval is %v second",interval)
 	for {
 		n := int64(0)
 		for _, bck := range s.bs {
 			n += bck.Online()
 		}
 		s.ps.Store(n)
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(interval) * time.Second)
 	}
 	return nil
 }
 
 func (s *sim) monitorWTI() error {
+	var interval = 20
+	logging.Infof("sim : start monitor WIT  server , interval is %v second",interval)
 	if s.opt.SupportPluginWTI {
 		for {
 			FlushWTI()
-			time.Sleep(20 * time.Second)
+			time.Sleep(time.Duration(interval) * time.Second)
 		}
 	}
 	return nil
@@ -130,7 +134,7 @@ func (s *sim) runGrpcServer() error {
 	if err != nil {
 		return err
 	}
-	logging.Infof("sim : start GRPC server at %s ")
+	logging.Infof("sim : start GRPC server at %s ",s.opt.ServerRpcPort)
 	if err := s.rpc.Serve(listen); err != nil {
 		return err
 	}
@@ -142,7 +146,7 @@ func (s *sim) runHttpServer() error {
 	if err != nil {
 		return err
 	}
-	logging.Infof("im/run : start HTTP server at %s ", s.opt.ServerHttpPort)
+	logging.Infof("sim : start HTTP server at %s ", s.opt.ServerHttpPort)
 	if err := http.Serve(listen, s.http); err != nil {
 		return err
 	}
@@ -151,6 +155,7 @@ func (s *sim) runHttpServer() error {
 
 func (s *sim) handlerBroadCast() error {
 	wg := errgroup.Group{}
+	logging.Infof("sim : start handlerBroadCast ，number is %v  ", s.opt.BroadCastHandler)
 	for i := 0; i < s.opt.BroadCastHandler; i++ {
 		wg.Go(func() error {
 			for {
@@ -190,6 +195,8 @@ func initSim(opts *Options) *sim {
 	for i := 0; i < b.opt.ServerBucketNumber; i++ {
 		b.bs[i] = newBucket(b.opt)
 	}
+	logging.Infof("sim : INIT_BUCKET_NUMBER is %v ",b.opt.ServerBucketNumber)
+	logging.Infof("sim : INIT_BUCKET_SIZE  is %v ",b.opt.BucketSize)
 
 	// prepare grpc
 	b.rpc = grpc.NewServer()
@@ -197,8 +204,11 @@ func initSim(opts *Options) *sim {
 
 	// prepare http
 	b.http = http.NewServeMux()
-	b.http.HandleFunc(RouterHealth, b.handlerHealth)
-	b.http.HandleFunc(RouterConnection, b.connection)
+	b.http.HandleFunc(b.opt.RouterHealth, b.handlerHealth)
+	b.http.HandleFunc(b.opt.RouterConnection, b.connection)
+	logging.Infof("sim : INIT_ROUTER_CONNECTION  is %s ",b.opt.RouterConnection)
+	logging.Infof("sim : INIT_ROUTER_HEALTH  is %s ",b.opt.RouterHealth)
+	logging.Infof("sim : INIT_VALIDATE_KEY is %s",b.opt.RouterValidateKey)
 	return b
 }
 

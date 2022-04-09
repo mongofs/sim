@@ -20,11 +20,11 @@ import (
 
 //WTI   WebSocket Target Interface
 type WTI interface {
-	// SetTAG 给用户打上标签
-	SetTAG(cli Client, tags ...string)
+	// Set 给用户打上标签
+	Set(cli Client, tags ...string)
 
-	// DelTAG 删除用户的标签
-	DelTAG(cli Client, tags ...string)
+	// Del 删除用户的标签
+	Del(cli Client, tags ...string)
 
 	// Update  如果用户下线将会通知调用这个方法
 	Update(token ...string)
@@ -80,7 +80,7 @@ func SetTAG(cli Client, tag ...string) error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
-	factory.SetTAG(cli, tag...)
+	factory.Set(cli, tag...)
 	return nil
 }
 
@@ -88,7 +88,7 @@ func DelTAG(cli Client, tag ...string) error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
-	factory.DelTAG(cli, tag...)
+	factory.Del(cli, tag...)
 	return nil
 }
 

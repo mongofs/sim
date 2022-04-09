@@ -26,6 +26,7 @@ const (
 	DefaultClientProtocol          = 1
 
 	// ====================================== Options for only server-side =======================
+
 	DefaultBucketSize         = 1 << 8 // 256
 	DefaultServerBucketNumber = 1 << 6 // 64
 	DefaultServerRpcPort      = ":8081"
@@ -35,6 +36,11 @@ const (
 
 	// PluginWTISupport 的参数支持
 	PluginWTISupport = false // 是否支持WTI 进行扩展
+
+	// router http相关设置
+	DefaultRouterConnection  = "/conn"
+	DefaultRouterHealth      = "/health"
+	DefaultRouterValidateKey = "token"
 )
 
 type Options struct {
@@ -94,6 +100,13 @@ type Options struct {
 	LogPath string
 
 	LogLevel logging.Level
+
+	// router
+	RouterConnection string
+
+	RouterHealth string
+
+	RouterValidateKey string
 }
 
 func DefaultOption() *Options {
@@ -113,6 +126,10 @@ func DefaultOption() *Options {
 		BroadCastBuffer:    DefaultBroadCastBuffer,
 		BroadCastHandler:   DefaultBroadCastHandler,
 		SupportPluginWTI:   PluginWTISupport,
+
+		RouterValidateKey: DefaultRouterValidateKey,
+		RouterConnection: DefaultRouterConnection,
+		RouterHealth: DefaultRouterHealth,
 	}
 }
 
@@ -217,13 +234,29 @@ func WithLogger(logger logging.Logger) OptionFunc {
 	}
 }
 
-func WithLoggerLevel(level logging.Level) OptionFunc{
+func WithLoggerLevel(level logging.Level) OptionFunc {
 	return func(b *Options) {
 		b.LogLevel = level
 	}
 }
 
+func WithRouterValidateKey(validateKey string) OptionFunc {
+	return func(b *Options) {
+		b.RouterValidateKey = validateKey
+	}
+}
 
+func WithRouterConnection(router string) OptionFunc {
+	return func(b *Options) {
+		b.RouterConnection = router
+	}
+}
+
+func WithRouterHealth(health string) OptionFunc {
+	return func(b *Options) {
+		b.RouterHealth = health
+	}
+}
 
 func WithDiscover(discover Discover) OptionFunc {
 	return func(opts *Options) {
