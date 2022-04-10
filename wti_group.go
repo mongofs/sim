@@ -14,49 +14,49 @@
 package sim
 
 import (
+	"sim/pkg/errors"
 	"sync"
 	"time"
 )
 
 type Group struct {
+	tag        *target
 	rw         *sync.RWMutex
+	cap        int64
 	set        map[string]Client
 	createTime int64
 }
 
-func NewGroup() *Group {
+func NewGroup(cap int64) *Group {
 	return &Group{
 		rw:         &sync.RWMutex{},
 		set:        map[string]Client{},
+		cap:        cap,
 		createTime: time.Now().Unix(),
 	}
 }
 
-
-// 给所有用户广播
-func (g *Group) broadCast(content []byte) {
-	g.rw.RLock()
-	defer g.rw.RUnlock()
-	for _, v := range g.set {
-		v.Send(content)
-	}
-}
+// ================================ action =============================
 
 //add 添加cli
-func (g *Group) add(clis ...Client) {
+func (g *Group) add(cli Client) error {
+	if cli == nil {
+		return errors.ErrCliISNil
+	}
 	g.rw.Lock()
 	defer g.rw.Unlock()
-	for _, v := range clis {
-		g.set[v.Token()] = v
-	}
+	g.set[cli.Token()] = cli
+	return nil
 }
 
-//del 删除cli
+//del 先删除group内的内容，然后删除用户内的内容
 func (g *Group) del(tokens ...string) {
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	for _, token := range tokens {
-		delete(g.set, token)
+		if _, ok := g.set[token]; ok {
+			delete(g.set, token)
+		}
 	}
 }
 
@@ -75,6 +75,30 @@ func (g *Group) counter() int64 {
 	g.rw.RLock()
 	defer g.rw.RUnlock()
 	return int64(len(g.set))
+}
+
+//broadCast  给所有用户广播
+func (g *Group) broadCast(content []byte) {
+	g.rw.RLock()
+	defer g.rw.RUnlock()
+	for _, v := range g.set {
+		v.Send(content)
+	}
+}
+
+//broadCastWithOtherTag 如果用户存在对应的标签可以将内容发送给对应的用户
+func (g *Group) broadCastWithOtherTag(content []byte, otherTags []string) error {
+	if len(otherTags) == 0 {
+		return errors.ErrCliISNil
+	}
+	g.rw.RLock()
+	defer g.rw.RUnlock()
+	for _, v := range g.set {
+		if v.HaveTag(otherTags) {
+			v.Send(content)
+		}
+	}
+	return nil
 }
 
 func (g *Group) Update(tokens ...string) {

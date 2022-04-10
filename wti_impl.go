@@ -14,159 +14,198 @@
 package sim
 
 import (
+	"sim/pkg/logging"
 	"sync"
 	"time"
 )
 
-type tg struct {
-	mp map[string] *Group // wti => []string
-	rw *sync.RWMutex
+type set struct {
+	// mp tagName =>
+	mp    map[string]*target // wti => []string
+	rw    *sync.RWMutex
+	async chan BCData
 }
 
-
-func newwti() WTI {
-	return &tg{
-		mp: map[string]*Group{},
-		rw: &sync.RWMutex{},
+func newSet() *set {
+	return &set{
+		mp:    map[string]*target{},
+		rw:    &sync.RWMutex{},
+		async: make(chan BCData, 100),
 	}
 }
 
+// ============================ for client - side =====================
 
-//Set 给用户设置标签
-func (t *tg)  Set(cli Client, tags ...string) {
-	if len(tags)== 0 {
+//Find 查找用户所需的target
+func (t *set) Find(tags []string) ([]*target, error) {
+	if len(tags) == 0 {
+		return nil, ERRNotSupportWTI
+	}
+	t.rw.Lock()
+	defer t.rw.Unlock()
+	var result []*target
+	for _, tag := range tags {
+		if target, ok := t.mp[tag]; !ok { // target not exist
+			t.mp[tag] = newTarget(tag)
+			result = append(result, target)
+		} else { // wti exist
+			result = append(result, target)
+		}
+	}
+	return result, nil
+}
+
+//Del 删除target
+func (t *set) Del(tags []string) {
+	if len(tags) == 0 {
 		return
 	}
 	t.rw.Lock()
 	defer t.rw.Unlock()
-	for _,tag := range tags{
-		if group,ok:= t.mp[tag];!ok { // wti not exist
-			t.mp[tag]= NewGroup()
-			t.mp[tag].add(cli)
-		}else { // wti exist
-			group.add(cli)
+	for _, tag := range tags {
+		if traget, ok := t.mp[tag]; ok {
+			traget.free()
+			delete(t.mp, tag)
 		}
 	}
 }
 
+// ============================ for RPC server -side ====================
 
-//Del 删除用户的标签
-func (t *tg) Del(cli Client, tags ...string){
-	if len(tags) == 0 {return }
-	t.rw.Lock()
-	defer t.rw.Unlock()
-	for _,tag := range tags {
-		if group,ok := t.mp[tag];!ok{
-			continue
-		}else {
-			group.del(cli.Token())
-		}
-	}
+type PushSetting uint8
+
+const (
+	PushSettingUnion = iota + 1 // 并集
+	PushSettingInner            // 交集
+)
+
+type BCData struct {
+	data        *[]byte
+	target      []string
+	pushSetting PushSetting
 }
-
-
-
-//Update 通知所有组进行自查某个用户，并删除
-func (t *tg)Update(token ...string){
-	t.rw.RLock()
-	defer t.rw.RUnlock()
-	for _,v := range t.mp {
-		v.Update(token... )
-	}
-}
-
 
 //BroadCast 给某一个标签的群体进行广播
-func (t *tg) BroadCast(content []byte,tags ...string) {
-	if len(tags)== 0 {
+func (t *set) BroadCast(data *BCData) {
+	if data == nil {
 		return
 	}
 	t.rw.RLock()
 	defer t.rw.RUnlock()
-	for _,tag := range tags{
-		if group,ok := t.mp[tag];ok{
-			group.broadCast(content)
+	switch data.pushSetting {
+	case PushSettingUnion:
+		for _, tag := range data.target {
+			if target, ok := t.mp[tag]; ok {
+				target.BroadCast(*data.data)
+				continue
+			}
+			logging.Warnf("target  %v is not exist", tag)
+		}
+	case PushSettingInner:
+		var (
+			min      = 10 >> 2
+			minIndex *target
+		)
+		for _, tag := range data.target {
+			if target, ok := t.mp[tag]; ok {
+				if min > target.Num() {
+					min = target.Num()
+					minIndex = target
+				}
+			}
+			minIndex.BroadCastWithInnerJoinTag(*data.data, data.target)
 		}
 	}
 }
 
-
-
-
-//BroadCastByTarget 调用这个就可以分类广播，可能出现不同的targ 需要不同的内容
-func(t *tg)BroadCastByTarget(targetAndContent map[string][]byte){
-	if len(targetAndContent) == 0{ return }
-	for target ,content := range targetAndContent {
-		t.BroadCast(content,target)
+//BroadCastByTarget 调用这个就可以分类广播，可能出现不同的targ 需要不同的内容,这种
+//用法和循环调用broadCast 效果一样
+func (t *set) BroadCastGroupByTarget(targetAndContent map[string][]byte) {
+	if len(targetAndContent) == 0 {
+		return
 	}
-}
-
-
-//GetClientTAGs  获取到用户token的所有TAG，时间复杂度是O(m) ,m是所有的房间
-func (t *tg)GetClientTAGs(token string)[]string{
-	var res []string
-	t.rw.RLock()
-	defer t.rw.RUnlock()
-	for k,v:= range t.mp{
-		exist:= v.exist(token)
-		if exist {
-			res = append(res,k )
+	for k, v := range targetAndContent {
+		data := BCData{
+			data:        &v,
+			target:      []string{k},
+			pushSetting: PushSettingInner,
 		}
-	}
-	return res
-}
-
-//GetTAGCreateTime 如果创建时间为0 ，表示没有这个房间
-func (t *tg) GetTAGCreateTime(tag string) int64{
-	t.rw.RLock()
-	defer t.rw.RUnlock()
-	if v,ok:=t.mp[tag];ok{
-		return v.createTime
-	}
-	return 0
-}
-
-
-//FlushWTI  删除tag ,这个调用一个大锁将全局锁住清空过去的内容
-func (t *tg) FlushWTI() {
-	t.rw.Lock()
-	defer t.rw.Unlock()
-	for k,v := range t.mp{
-		if v.counter() ==0 && time.Now().Unix() -v.createTime >60 {
-			delete(t.mp,k)
-		}
+		t.async <- data
 	}
 }
 
+//BroadCastByTarget 调用 交集调用
+func (t *set) BroadCastToInnerJoinTarget(content []byte, tag []string) {
+	if len(tag) == 0 {
+		return
+	}
+	data := BCData{
+		data:        &content,
+		target:      tag,
+		pushSetting: PushSettingInner,
+	}
+	t.async <- data
+}
 
-//Distribute  获取到tagOnlines 在线用户人数
-func (t *tg) Distribute(tags...  string) map[string]*DistributeParam {
+//BroadCastByTarget 调用 交集调用
+func (t *set) BroadCastToUnionJoinTarget(content []byte, tag []string) {
+	if len(tag) == 0 {
+		return
+	}
+	data := BCData{
+		data:        &content,
+		target:      tag,
+		pushSetting: PushSettingUnion,
+	}
+	t.async <- data
+}
+
+//Distribute  获取到tagOnlines 在线用户人数,以及对应的群组的分布情况
+func (t *set) Distribute(tags ...string) map[string]*DistributeParam {
 	var res = map[string]*DistributeParam{}
 	if len(tags) == 0 {
 		t.rw.RLock()
-		for k,v:= range t.mp {
+		for k, v := range t.mp {
 			tem := &DistributeParam{
 				TagName:    k,
-				Onlines:    v.counter(),
-				CreateTime: v.createTime,
+				Onlines:    int64(v.Num()),
+				CreateTime: v.CreateTime(),
 			}
-			res[k]=tem
+			res[k] = tem
 		}
 		t.rw.RUnlock()
 		return res
 	}
 	t.rw.RLock()
-	for _,tag := range tags {
+	for _, tag := range tags {
 		// get the tag
-		if v,ok := t.mp[tag];ok {
+		if v, ok := t.mp[tag]; ok {
 			tem := &DistributeParam{
 				TagName:    tag,
-				Onlines:    v.counter(),
-				CreateTime: v.createTime,
+				Onlines:    int64(v.Num()),
+				CreateTime: v.CreateTime(),
 			}
-			res[tag]= tem
+			res[tag] = tem
 		}
 	}
 	t.rw.RUnlock()
 	return res
+}
+
+//monitor is a goroutine to monitor the wti run state
+func (t *set) monitor() {
+	for {
+		for _, v := range t.mp {
+			if v.Num() == 0 && time.Now().Unix()-v.CreateTime() > 60 {
+				err := v.free()
+				if err != nil {
+					logging.Error(err)
+					continue
+				}
+				delete(t.mp, v.name)
+			}
+		}
+
+		time.Sleep(20 * time.Second)
+	}
 }

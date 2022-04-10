@@ -173,6 +173,27 @@ func (s *sim) handlerBroadCast() error {
 	return wg.Wait()
 }
 
+// todo
+func (s *sim) handlerTargetBraodCastAsync ()error{
+	wg := errgroup.Group{}
+	logging.Infof("sim : start handlerBroadCast ，number is %v  ", s.opt.BroadCastHandler)
+	for i := 0; i < s.opt.BroadCastHandler; i++ {
+		wg.Go(func() error {
+			for {
+				data := <-s.buffer
+				for _, v := range s.bs {
+					err := v.broadCast(data, false)
+					if err != nil {
+						logging.Error(err)
+					}
+				}
+			}
+			return nil
+		})
+	}
+	return wg.Wait()
+}
+
 func (s *sim) close() error {
 	s.rpc.GracefulStop()
 	s.cancel()

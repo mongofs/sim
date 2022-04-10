@@ -18,13 +18,12 @@ import (
 	"go.uber.org/atomic"
 )
 
-//WTI   WebSocket Target Interface
+//WTI   WebSocket Target Interface ,client 会注册到具体的taget中，所涉及到的taget操作
+// action : find ,
 type WTI interface {
-	// Set 给用户打上标签
-	Set(cli Client, tags ...string)
 
-	// Del 删除用户的标签
-	Del(cli Client, tags ...string)
+	// 找到某个具体的target ，然后 cli.SetTag (*result), and the
+	Find(tags []string) []*target
 
 	// Update  如果用户下线将会通知调用这个方法
 	Update(token ...string)
@@ -34,12 +33,6 @@ type WTI interface {
 
 	// BroadCastByTarget 广播所有内容
 	BroadCastByTarget(targetAndContent map[string][]byte)
-
-	// GetClientTAGs 获取某个用户的所有的标签
-	GetClientTAGs(token string) []string
-
-	// GetTAGCreateTime 获取到标签的创建时间
-	GetTAGCreateTime(tag string) int64
 
 	// Distribute 获取到所有tag的用户分布
 	Distribute(tags ...string)map[string]*DistributeParam
@@ -60,12 +53,12 @@ type DistributeParam struct {
 
 // 其他地方将调用这个变量，如果自己公司实现tag需要注入在程序中进行注入
 var (
-	factory      WTI = newwti()
+	factoryWTI      WTI = newwti()
 	isSupportWTI     = atomic.NewBool(false)
 )
 
 func InjectWTI(wti WTI) {
-	factory = wti
+	factoryWTI = wti
 }
 
 func SetSupport (){

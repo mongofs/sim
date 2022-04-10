@@ -13,9 +13,15 @@
 
 package sim
 
-import "net/http"
+import (
+	"errors"
+	"net/http"
+	"sync"
+)
 
 type Client interface {
+
+	//============================================ Connection ===============================
 
 	// Send 发送消息下去
 	Send([]byte) error
@@ -40,21 +46,35 @@ type Client interface {
 
 	// SetProtocol 设置用户接收消息的协议：
 	SetProtocol(protocol Protocol)
-}
 
+	//============================================ Tag ===============================
+
+	// HaveTag 判断用户是否存在某个tag
+	HaveTag(tags [] string) bool
+
+	// SetTag 为用户添加tag
+	SetTag(tags []string)error
+
+	// SetTag 删除用户的tag
+	DelTag(tags [] string)
+}
 
 type Cli struct {
+	// protect Cli tag
+	rw sync.RWMutex
 	Connect
-	reader        *http.Request
+	tags   map[string]*target
+	reader *http.Request
 }
+
 
 
 func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, token *string, option *Options) (Client, error) {
 	res := &Cli{
-		reader:        r,
+		reader: r,
 	}
 
-	conn, err := NewGorilla(token, closeSig, option, w, r,option.ServerReceive)
+	conn, err := NewGorilla(token, closeSig, option, w, r, option.ServerReceive)
 	if err != nil {
 		return nil, err
 	}
@@ -64,4 +84,40 @@ func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, t
 
 func (c *Cli) Request() *http.Request {
 	return c.reader
+}
+
+func (c *Cli) HaveTag(tags []string) bool {
+	c.rw.Lock()
+	defer c.rw.RUnlock()
+	for _,tag:= range tags{
+		if _, ok := c.tags[tag]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Cli) SetTag(tags []string) error{
+	if len(tags) == 0 {return errors.New("")}
+	c.rw.Lock()
+	defer c.rw.RUnlock()
+
+	// 查找对应的tags，如果不存在就创建
+	targets := factoryWTI.Find(tags)
+	for _,target := range targets {
+		target.Add(c)
+		c.tags[target.name] =target
+	}
+	return nil
+}
+
+func (c *Cli) DelTag(tags [] string) {
+	c.rw.Lock()
+	defer c.rw.RUnlock()
+	for _,tag := range tags{
+		if target,ok := c.tags[tag];ok{
+			target.Del(c.Token())
+			delete(c.tags, tag)
+		}
+	}
 }
