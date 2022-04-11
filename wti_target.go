@@ -21,11 +21,16 @@ import (
 // target 存放的内容是 target -> groupA->GroupB
 type target struct {
 	rw     sync.RWMutex
+
 	name   string
-	li     *list.List
-	num    *int  // online user
-	limit  *int  // max online user for group
-	offset uint8 // the next user group offset
+	num    int // online user
+	numG   int
+	offset int // the next user group offset
+
+	flag  int // 0 不动，1是扩容，2是缩容
+	li    *list.List
+	limit int // max online user for group
+	createTime int64 // create time
 }
 
 func newTarget(targetName string) *target {
@@ -34,80 +39,150 @@ func newTarget(targetName string) *target {
 	return res
 }
 
+// ============================================= API =================================
+
 // Init 实例化list
 func (t *target) Init(name string) *target {
 	t.li = list.New()
 	t.name = name
-	t.li.PushFront(NewGroup())
+	elem := &list.Element{Value: NewGroup(t.limit)}
+	t.li.PushFront(elem)
 	return t
 }
 
 // Add 添加用户到target中
-func (t *target) Add(cli Client) {
+func (t *target) add(cli Client) {
 	offset := t.offset
-	var node = t.li.Front()
+	node := t.li.Front()
 	for offset != 0 {
 		if node.Next() != nil {
 			node = node.Next()
 		} else {
-			continue
+			g := node.Value.(*Group)
+			if err := g.add(cli); err != nil {
+				t.expansion(cli)
+			}
 		}
 		offset -= 1
 	}
-	g := node.Value.(*Group)
-	if err := g.add(cli); err != nil {
-		t.extension(cli)
-	}
+	t.num++
 }
 
 // Del 将用户从target剔除
-func (t *target) Del(token string) {
-	// node.del(token)
-
-}
-
-func (t *target) Num() int {
-	return t.num
-}
-
-func (t *target) CreateTime() int64 {
-	return t.num
+func (t *target) del(token string) {
+	node := t.li.Front()
+	for node != nil {
+		gp := node.Value.(*Group)
+		if gp.del(token) {
+			t.num--
+			break
+		}
+		node = node.Next()
+	}
 }
 
 // BroadCast 给同组内的用户进行广播
-func (t *target) BroadCast(data []byte) {}
+func (t *target) broadCast(data []byte) {
+	node := t.li.Front()
+	for node != nil {
+		g := node.Value.(*Group)
+		g.broadCast(data)
+		node = node.Next()
+	}
+}
 
-// BroadCastAndWithTag 给同组内伴随另外的组的用户进行广播，这个就是求交集，
-// 用户有tag1 标签，并且有tag2 标签，进行求交集广播
-func (t *target) BroadCastWithInnerJoinTag(data []byte, otherTag []string) {
+// broadCastWithInnerJoinTag  进行交集广播
+func (t *target) broadCastWithInnerJoinTag(data []byte, otherTag []string) {
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	node := t.li.Front()
 	for node != nil {
-		node.Value.(*Group).broadCast(data)
-		if node.Next() != nil {
-			node = node.Next()
-			continue
+		node.Value.(*Group).broadCastWithOtherTag(data, otherTag)
+		node = node.Next()
+	}
+}
+
+// expansion 促发扩容
+func (t *target) expansion(cli Client) {
+	newG := NewGroup(t.limit)
+	_ = newG.add(cli)
+	go t.handleExpansion(newG)
+}
+
+//shrinks 缩容
+func (t *target) shrinks() {
+	// 缩容的标准是 ： 缩容标志
+	// 缩容的G的个数 ： num / limit +2
+	// 缩容的步骤： 从尾部释放，释放到具体个数
+
+	targetG := t.num/t.limit + 2
+	numG := 0
+	var temCli []Client
+	for node := t.li.Front(); node != nil; node = node.Next() {
+		numG++
+		if numG > targetG {
+			// 释放group 用户
+			nG := node.Value.(*Group)
+			temCli = append(temCli, nG.free()...)
+			// 将前置node置为空
+			prevNode := node.Prev()
+			prevNode.Next().Value = nil
 		}
-		break
 	}
 
+	dist := len(temCli)
+	avg := dist / targetG
+
+	for node := t.li.Front(); node != nil; node = node.Next() {
+		ng := node.Value.(*Group)
+		if node.Next() == nil {
+			ng.batchAdd(temCli[:])
+		} else {
+			ng.batchAdd(temCli[:avg])
+			temCli = temCli[avg:]
+		}
+	}
 }
 
-// extension 创建一个新的group
-func (t *target) extension(cli Client) {
-	newG := NewGroup()
-	_ = newG.add(cli)
-
-	go func() {
-		var node := t.li.Front()
-		for node != nil {
-
+// handleExpansion 具体的扩容逻辑
+func (t *target) handleExpansion(newg *Group) {
+	defer func() {
+		if err := recover(); err != nil {
+			// logging.Error(err)
 		}
 	}()
+	t.li.PushBack(list.Element{Value: newg})
+	t.reBalance()
 }
 
-// free 释放掉当前tag
+//reBalance 将所有的用户进行重新分配一下
+func (t *target) reBalance() {
+	avg := t.num / t.numG
+
+	node := t.li.Front()
+	var temCli []Client
+	for node != nil {
+		g := node.Value.(*Group)
+		diff := g.counter() - avg
+		if diff > 0 {
+			temCli = append(temCli, g.remove(diff)...)
+		}
+		node = node.Next()
+	}
+
+	for node := t.li.Front(); node != nil; node = node.Next() {
+		g := node.Value.(*Group)
+		diff := g.counter() - avg
+		if diff < 0 {
+			diff = -diff
+			distr := temCli[0:diff]
+			temCli = temCli[diff:]
+			g.batchAdd(distr)
+		}
+	}
+}
+
+// free 释放掉当前target
 func (t *target) free() error {
 	newG := NewGroup()
 	_ = newG.add(cli)

@@ -118,7 +118,7 @@ func (t *set) BroadCast(data *BCData) {
 	}
 }
 
-//BroadCastByTarget 调用这个就可以分类广播，可能出现不同的targ 需要不同的内容,这种
+//BroadCastGroupByTarget 调用这个就可以分类广播，可能出现不同的target 需要不同的内容,这种
 //用法和循环调用broadCast 效果一样
 func (t *set) BroadCastGroupByTarget(targetAndContent map[string][]byte) {
 	if len(targetAndContent) == 0 {
@@ -134,7 +134,7 @@ func (t *set) BroadCastGroupByTarget(targetAndContent map[string][]byte) {
 	}
 }
 
-//BroadCastByTarget 调用 交集调用
+//BroadCastToInnerJoinTarget 调用 交集调用
 func (t *set) BroadCastToInnerJoinTarget(content []byte, tag []string) {
 	if len(tag) == 0 {
 		return
@@ -147,7 +147,7 @@ func (t *set) BroadCastToInnerJoinTarget(content []byte, tag []string) {
 	t.async <- data
 }
 
-//BroadCastByTarget 调用 交集调用
+//BroadCastToUnionJoinTarget 调用 交集调用
 func (t *set) BroadCastToUnionJoinTarget(content []byte, tag []string) {
 	if len(tag) == 0 {
 		return
@@ -160,7 +160,13 @@ func (t *set) BroadCastToUnionJoinTarget(content []byte, tag []string) {
 	t.async <- data
 }
 
-//Distribute  获取到tagOnlines 在线用户人数,以及对应的群组的分布情况
+type DistributeParam struct {
+	TagName string
+	Onlines int64
+	CreateTime int64
+}
+
+//Distribute  获取到tagOnline 在线用户人数,以及对应的群组的分布情况
 func (t *set) Distribute(tags ...string) map[string]*DistributeParam {
 	var res = map[string]*DistributeParam{}
 	if len(tags) == 0 {

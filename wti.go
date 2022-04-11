@@ -44,11 +44,7 @@ type WTI interface {
 
 
 
-type DistributeParam struct {
-	TagName string
-	Onlines int64
-	CreateTime int64
-}
+
 
 
 // 其他地方将调用这个变量，如果自己公司实现tag需要注入在程序中进行注入

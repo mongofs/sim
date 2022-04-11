@@ -55,7 +55,7 @@ type Client interface {
 	// SetTag 为用户添加tag
 	SetTag(tags []string)error
 
-	// SetTag 删除用户的tag
+	// DelTag 删除用户的tag
 	DelTag(tags [] string)
 }
 
