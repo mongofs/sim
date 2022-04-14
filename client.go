@@ -103,11 +103,11 @@ func (c *Cli) SetTag(tags []string) error{
 	defer c.rw.RUnlock()
 
 	// 查找对应的tags，如果不存在就创建
-	targets := factoryWTI.Find(tags)
+/*	targets := factoryWTI.Find(tags)
 	for _,target := range targets {
 		target.Add(c)
 		c.tags[target.name] =target
-	}
+	}*/
 	return nil
 }
 
@@ -115,8 +115,8 @@ func (c *Cli) DelTag(tags [] string) {
 	c.rw.Lock()
 	defer c.rw.RUnlock()
 	for _,tag := range tags{
-		if target,ok := c.tags[tag];ok{
-			target.Del(c.Token())
+		if _,ok := c.tags[tag];ok{
+			//target.Del(c.Token())
 			delete(c.tags, tag)
 		}
 	}

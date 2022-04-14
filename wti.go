@@ -49,12 +49,12 @@ type WTI interface {
 
 // 其他地方将调用这个变量，如果自己公司实现tag需要注入在程序中进行注入
 var (
-	factoryWTI      WTI = newwti()
+	//factoryWTI      WTI = newwti()
 	isSupportWTI     = atomic.NewBool(false)
 )
 
 func InjectWTI(wti WTI) {
-	factoryWTI = wti
+	//factoryWTI = wti
 }
 
 func SetSupport (){
@@ -69,7 +69,7 @@ func SetTAG(cli Client, tag ...string) error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
-	factory.Set(cli, tag...)
+	//factory.Set(cli, tag...)
 	return nil
 }
 
@@ -77,7 +77,7 @@ func DelTAG(cli Client, tag ...string) error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
-	factory.Del(cli, tag...)
+//	factory.Del(cli, tag...)
 	return nil
 }
 
@@ -85,7 +85,7 @@ func Update(token ...string) error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
-	factory.Update(token...)
+//	factory.Update(token...)
 	return nil
 }
 
@@ -93,7 +93,7 @@ func BroadCast(content []byte, tag ...string) error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
-	factory.BroadCast(content, tag...)
+//	factory.BroadCast(content, tag...)
 	return nil
 }
 
@@ -101,7 +101,7 @@ func BroadCastByTarget(targetAndContent map[string][]byte) error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
-	factory.BroadCastByTarget(targetAndContent)
+//	factory.BroadCastByTarget(targetAndContent)
 	return nil
 }
 
@@ -109,16 +109,16 @@ func GetClientTAGs(token string) ([]string, error) {
 	if isSupportWTI.Load() == false {
 		return nil, ERRNotSupportWTI
 	}
-	res := factory.GetClientTAGs(token)
-	return res, nil
+//	res := factory.GetClientTAGs(token)
+	return nil, nil
 }
 
 func GetTAGCreateTime(tag string) (int64, error) {
 	if isSupportWTI.Load() == false {
 		return 0, ERRNotSupportWTI
 	}
-	res := factory.GetTAGCreateTime(tag)
-	return res, nil
+//	res := factory.GetTAGCreateTime(tag)
+	return 0, nil
 }
 
 
@@ -126,8 +126,8 @@ func Distribute() (map[string]*DistributeParam, error) {
 	if isSupportWTI.Load() == false {
 		return nil, ERRNotSupportWTI
 	}
-	res := factory.Distribute()
-	return res, nil
+//	res := factory.Distribute()
+	return nil, nil
 }
 
 
@@ -135,6 +135,6 @@ func FlushWTI() error {
 	if isSupportWTI.Load() == false {
 		return ERRNotSupportWTI
 	}
-	factory.FlushWTI()
+//	factory.FlushWTI()
 	return nil
 }

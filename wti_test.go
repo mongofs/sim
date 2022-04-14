@@ -25,6 +25,18 @@ type MockClient struct {
 	token string
 }
 
+func (m MockClient) HaveTag(tags []string) bool {
+	panic("implement me")
+}
+
+func (m MockClient) SetTag(tags []string) error {
+	panic("implement me")
+}
+
+func (m MockClient) DelTag(tags []string) {
+	panic("implement me")
+}
+
 func (m MockClient) Send(bytes []byte) error {
 	panic("implement me")
 }
@@ -58,7 +70,7 @@ func (m MockClient) SetProtocol(protocol Protocol) {
 }
 
 func NewTestClient(token string ) Client {
-	return &MockClient{token: token}
+	return nil
 }
 
 

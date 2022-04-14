@@ -46,7 +46,7 @@ func (t *set) Find(tags []string) ([]*target, error) {
 	var result []*target
 	for _, tag := range tags {
 		if target, ok := t.mp[tag]; !ok { // target not exist
-			t.mp[tag] = newTarget(tag)
+			t.mp[tag] ,_= NewTarget(tag,20)
 			result = append(result, target)
 		} else { // wti exist
 			result = append(result, target)
@@ -63,8 +63,8 @@ func (t *set) Del(tags []string) {
 	t.rw.Lock()
 	defer t.rw.Unlock()
 	for _, tag := range tags {
-		if traget, ok := t.mp[tag]; ok {
-			traget.free()
+		if _, ok := t.mp[tag]; ok {
+			//traget.free()
 			delete(t.mp, tag)
 		}
 	}
@@ -108,8 +108,8 @@ func (t *set) BroadCast(data *BCData) {
 		)
 		for _, tag := range data.target {
 			if target, ok := t.mp[tag]; ok {
-				if min > target.Num() {
-					min = target.Num()
+				if min > target.num {
+					min = target.num
 					minIndex = target
 				}
 			}
@@ -174,8 +174,8 @@ func (t *set) Distribute(tags ...string) map[string]*DistributeParam {
 		for k, v := range t.mp {
 			tem := &DistributeParam{
 				TagName:    k,
-				Onlines:    int64(v.Num()),
-				CreateTime: v.CreateTime(),
+				Onlines:    int64(v.num),
+				CreateTime: v.createTime,
 			}
 			res[k] = tem
 		}
@@ -188,8 +188,8 @@ func (t *set) Distribute(tags ...string) map[string]*DistributeParam {
 		if v, ok := t.mp[tag]; ok {
 			tem := &DistributeParam{
 				TagName:    tag,
-				Onlines:    int64(v.Num()),
-				CreateTime: v.CreateTime(),
+				Onlines:    int64(v.num),
+				CreateTime: v.createTime,
 			}
 			res[tag] = tem
 		}
@@ -202,12 +202,12 @@ func (t *set) Distribute(tags ...string) map[string]*DistributeParam {
 func (t *set) monitor() {
 	for {
 		for _, v := range t.mp {
-			if v.Num() == 0 && time.Now().Unix()-v.CreateTime() > 60 {
-				err := v.free()
-				if err != nil {
+			if v.num == 0 && time.Now().Unix()-v.createTime > 60 {
+			//	err := v.free()
+				/*if err != nil {
 					logging.Error(err)
 					continue
-				}
+				}*/
 				delete(t.mp, v.name)
 			}
 		}

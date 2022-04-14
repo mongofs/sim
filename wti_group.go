@@ -22,7 +22,7 @@ import (
 type Group struct {
 	tag        *target
 	rw         *sync.RWMutex
-	cap        int
+	cap, num   int
 	set        map[string]Client
 	createTime int64
 }
@@ -39,25 +39,26 @@ func NewGroup(cap int) *Group {
 // ================================ action =============================
 
 //add 添加cli
-func (g *Group) add(cli Client) error {
-	if cli == nil {
-		return errors.ErrCliISNil
-	}
+func (g *Group) add(cli Client) (overCap bool) {
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	g.set[cli.Token()] = cli
-	return nil
+	g.num ++
+	if g.num > g.cap {
+		return true
+	}
+	return false
 }
 
 //del 先删除group内的内容，然后删除用户内的内容
-func (g *Group) del(tokens ...string) bool{
+func (g *Group) del(tokens ...string) bool {
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	var flag = true
 	for _, token := range tokens {
 		if _, ok := g.set[token]; ok {
 			delete(g.set, token)
-		}else {
+		} else {
 			flag = false
 		}
 	}
@@ -82,40 +83,40 @@ func (g *Group) counter() int {
 }
 
 // remove 移除用户的token
-func (g *Group) remove(num int)[]Client{
+func (g *Group) remove(num int) []Client {
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	var (
-		counter int =0
-		res []Client
+		counter int = 0
+		res     []Client
 	)
 
-	for k,v := range g.set{
-		if counter == num{
+	for k, v := range g.set {
+		if counter == num {
 			break
 		}
-		delete(g.set,k)
+		delete(g.set, k)
 		res = append(res, v)
-		counter ++
+		counter++
 	}
 	return res
 }
 
 // batchAdd 批量新增用户
-func (g *Group) batchAdd(cliS []Client){
+func (g *Group) batchAdd(cliS []Client) {
 	g.rw.Lock()
 	defer g.rw.Unlock()
-	for _,cli := range cliS{
-		g.set[cli.Token()]=cli
+	for _, cli := range cliS {
+		g.set[cli.Token()] = cli
 	}
 }
 
 // free 释放group的用户
-func (g *Group) free ()[]Client{
+func (g *Group) free() []Client {
 	g.rw.Lock()
 	defer g.rw.RLock()
-	var res [] Client
-	for _,v := range g.set{
+	var res []Client
+	for _, v := range g.set {
 		res = append(res, v)
 	}
 	return res
