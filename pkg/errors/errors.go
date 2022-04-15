@@ -28,4 +28,7 @@ var (
 	ErrTokenIsNil = errors.New("sim : ValidateKey can't be nil")
 	ErrUserBufferIsFull = errors.New("sim : The client buffer is about to fill up")
 
+
+	ErrGroupBadParam = errors.New("sim/wti :  bad param ")
+
 )

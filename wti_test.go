@@ -16,6 +16,7 @@ package sim
 
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -23,10 +24,16 @@ import (
 
 type MockClient struct {
 	token string
+	tag map[string]string
 }
 
 func (m MockClient) HaveTag(tags []string) bool {
-	panic("implement me")
+	for _,v := range tags {
+		if _,ok := m.tag[v];!ok{
+			return false
+		}
+	}
+	return true
 }
 
 func (m MockClient) SetTag(tags []string) error {
@@ -38,7 +45,9 @@ func (m MockClient) DelTag(tags []string) {
 }
 
 func (m MockClient) Send(bytes []byte) error {
-	panic("implement me")
+	if m.token == "token3" {return errors.New("bad push ")}
+	fmt.Printf("token %s 收到消息： %v \n\r",m.token,string(bytes))
+	return nil
 }
 
 func (m MockClient) Close(forRetry bool) error {
@@ -54,7 +63,7 @@ func (m MockClient) GetLastHeartBeatTime() int64 {
 }
 
 func (m MockClient) Token() string {
-	panic("implement me")
+	return m.token
 }
 
 func (m MockClient) Request() *http.Request {

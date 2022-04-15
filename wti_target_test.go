@@ -14,42 +14,88 @@
 package sim
 
 import (
-	."github.com/smartystreets/goconvey/convey"
+	"fmt"
+	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
+func initTarget() {
+
+}
+
 func TestNewTarget(t *testing.T) {
-	Convey("create a target",t, func() {
+	Convey("create a target", t, func() {
 		Convey("create should  fail", func() {
-			_,err := NewTarget("",20)
-			So(err != nil ,ShouldBeTrue)
-			_,err1:= NewTarget("demo",0)
-			So(err1 != nil ,ShouldBeTrue)
+			_, err := NewTarget("", 20)
+			So(err != nil, ShouldBeTrue)
+			_, err1 := NewTarget("demo", 0)
+			So(err1 != nil, ShouldBeTrue)
 		})
 		Convey("create should success ", func() {
-			tg,err := NewTarget("demo",20)
-			if err !=nil {t.Fatal(err)}
+			tg, err := NewTarget("demo", 20)
+			if err != nil {
+				t.Fatal(err)
+			}
 			status := tg.Status()
-			So(status== TargetFlagNORMAL,ShouldBeTrue)
-			So(tg.num == 0,ShouldBeTrue)
-			So(tg.numG == 1,ShouldBeTrue)
-			So(tg.createTime==0,ShouldBeFalse)
+			So(status == TargetFlagNORMAL, ShouldBeTrue)
+			So(tg.num == 0, ShouldBeTrue)
+			So(tg.numG == 1, ShouldBeTrue)
+			So(tg.createTime == 0, ShouldBeFalse)
 		})
 	})
 }
 
-func  TestTarget_Add(t *testing.T) {
-	tg,err := NewTarget("demo",20)
-	if err !=nil {t.Fatal(err)}
-	Convey("test target Add client ",t, func() {
-		tg.Add(&MockClient{"aaaa"})
-		tg.Add(&MockClient{"bbbb"})
-		So(tg.num == 2 ,ShouldBeTrue)
-		// test for retry conn
-		// 创建连接，实际上是一个比较严重的bug，最好要避免
-		newAconn := &MockClient{"aaaa"}
-		tg.Add(newAconn)
-		So()
+func TestTarget_Add(t *testing.T) {
+	Convey("test target Add client ", t, func() {
+		Convey("测试创建相同token", func() {
+			tg, err := NewTarget("demo", 20)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tg.Add(&MockClient{token: "aaaa"})
+			tg.Add(&MockClient{token: "bbbb"})
+			So(tg.num == 2, ShouldBeTrue)
+			// test for retry conn
+			// 创建连接，实际上是一个比较严重的bug，最好要避免
+			newAconn := &MockClient{token: "aaaa"}
+			tg.Add(newAconn)
+			So(tg.num == 2, ShouldBeTrue)
+		})
+		Convey("测试创建超过单个组容量的客户端", func() {
+			tg, err := NewTarget("demo", 2)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 25; i++ {
+				token := fmt.Sprintf("%d%d", i, i)
+				tg.Add(&MockClient{token: token})
+			}
+			So(tg.num == 25 , ShouldBeTrue)
+		})
 
+	})
+}
+
+func TestTarget_Del(t *testing.T) {
+	Convey("测试target中删除某个用户",t, func() {
+		tg,err:= NewTarget("demo",20)
+		if err !=nil {t.Fatal(err)}
+		tg.Add(&MockClient{token: "1111"})
+		tg.Add(&MockClient{token: "1222"})
+		tg.Add(&MockClient{token: "1333"})
+		tg.Add(&MockClient{token: "1444"})
+		tg.Del([]string{"1111"})
+		So(tg.num == 3,ShouldBeTrue)
+		tg.Del([]string{"1111"})
+		So(tg.num == 3,ShouldBeTrue)
+	})
+
+}
+
+
+func TestTarget_ReBalance(t *testing.T) {
+	Convey("测试重平衡",t, func() {
+		/*tg,_ := NewTarget("demo",20)
+		tg.Add()*/
 	})
 }

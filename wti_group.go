@@ -19,133 +19,191 @@ import (
 	"time"
 )
 
+const DefaultCapacity = 250
+
+type GroupStatus int
+
+const (
+	GroupStatusNormal GroupStatus = iota + 1
+	GroupStatusClosed
+)
+
 type Group struct {
 	tag        *target
 	rw         *sync.RWMutex
+	flag       GroupStatus
+	load       int
 	cap, num   int
 	set        map[string]Client
 	createTime int64
 }
 
 func NewGroup(cap int) *Group {
+	if cap == 0 {
+		cap = DefaultCapacity
+	}
 	return &Group{
 		rw:         &sync.RWMutex{},
 		set:        map[string]Client{},
 		cap:        cap,
+		flag: GroupStatusNormal,
 		createTime: time.Now().Unix(),
 	}
 }
 
 // ================================ action =============================
 
-//add 添加cli
-func (g *Group) add(cli Client) (overCap bool) {
+
+func (g *Group) Add(cli Client) (same bool) {
+	if cli == nil {
+		return true
+	}
+	return g.add(cli)
+}
+
+func (g *Group) Num()int{
+	return g.num
+}
+
+func (g *Group) Del(tokens []string) (stop bool,success []string) {
+	if len(tokens) == 0 {
+		return true,nil
+	}
+	return g.del(tokens)
+}
+
+func (g *Group) Move(num int) ([]Client, error) {
+	if num <= 0 || num >= g.num {
+		return nil, errors.ErrGroupBadParam
+	}
+	return g.move(num), nil
+}
+
+func (g *Group) Free() ([]Client, error) {
+	return g.move(g.num), nil
+}
+
+func (g *Group) BatchAdd(cliS []Client) {
+	if len(cliS) == 0 {
+		return
+	}
+}
+
+func (g *Group) BroadCast(content []byte) []string{
+	if content == nil {
+		return nil
+	}
+	return g.broadcast(content)
+}
+
+func (g *Group) BroadCastWithOtherTag(content []byte, otherTags []string) ([]string,error) {
+	if len(otherTags) == 0 {
+		return nil,errors.ErrCliISNil
+	}
+	return g.broadcastWithTag(content, otherTags),nil
+}
+
+// ================================= helper =============================
+
+func (g *Group) add(cli Client) bool {
 	g.rw.Lock()
 	defer g.rw.Unlock()
-	g.set[cli.Token()] = cli
-	g.num ++
-	if g.num > g.cap {
+	if _, ok := g.set[cli.Token()]; ok {
+		g.set[cli.Token()] = cli
 		return true
+	} else {
+		g.set[cli.Token()] = cli
+		g.num++
+		g.calculateLoad()
+	}
+
+	if g.num > g.cap {
+		return false
 	}
 	return false
 }
 
-//del 先删除group内的内容，然后删除用户内的内容
-func (g *Group) del(tokens ...string) bool {
+func (g *Group) addMany(cliS []Client) {
 	g.rw.Lock()
 	defer g.rw.Unlock()
-	var flag = true
+	for _, cli := range cliS {
+		if _, ok := g.set[cli.Token()]; ok {
+			g.set[cli.Token()] = cli
+		} else {
+			g.set[cli.Token()] = cli
+			g.num++
+		}
+	}
+	g.calculateLoad()
+}
+
+func (g *Group) del(tokens []string) (clear bool,success [] string) {
+	g.rw.Lock()
+	defer g.rw.Unlock()
 	for _, token := range tokens {
 		if _, ok := g.set[token]; ok {
 			delete(g.set, token)
+			g.num--
+			g.calculateLoad()
+			success = append(success, token)
 		} else {
-			flag = false
+			clear = false
 		}
 	}
-	return flag
+	return clear,success
 }
 
-//exist 是否存在cli
-func (g *Group) exist(token string) bool {
-	g.rw.RLock()
-	defer g.rw.RUnlock()
-	if _, ok := g.set[token]; ok {
-		return true
-	}
-	return false
-}
-
-//counter 是否存在cli
-func (g *Group) counter() int {
-	g.rw.RLock()
-	defer g.rw.RUnlock()
-	return len(g.set)
-}
-
-// remove 移除用户的token
-func (g *Group) remove(num int) []Client {
-	g.rw.Lock()
-	defer g.rw.Unlock()
+func (g *Group) move(num int) []Client {
 	var (
 		counter int = 0
 		res     []Client
 	)
-
+	g.rw.Lock()
+	defer g.rw.Unlock()
+	if num == g.num {
+		g.flag = GroupStatusClosed
+	}
 	for k, v := range g.set {
 		if counter == num {
 			break
 		}
 		delete(g.set, k)
 		res = append(res, v)
+		g.num--
 		counter++
 	}
+	g.calculateLoad()
 	return res
 }
 
-// batchAdd 批量新增用户
-func (g *Group) batchAdd(cliS []Client) {
-	g.rw.Lock()
-	defer g.rw.Unlock()
-	for _, cli := range cliS {
-		g.set[cli.Token()] = cli
-	}
-}
-
-// free 释放group的用户
-func (g *Group) free() []Client {
-	g.rw.Lock()
-	defer g.rw.RLock()
-	var res []Client
-	for _, v := range g.set {
-		res = append(res, v)
-	}
-	return res
-}
-
-//broadCast  给所有用户广播
-func (g *Group) broadCast(content []byte) {
+func (g *Group) broadcast(content []byte)[]string {
 	g.rw.RLock()
 	defer g.rw.RUnlock()
+	var res [] string
 	for _, v := range g.set {
-		v.Send(content)
-	}
-}
-
-//broadCastWithOtherTag 如果用户存在对应的标签可以将内容发送给对应的用户
-func (g *Group) broadCastWithOtherTag(content []byte, otherTags []string) error {
-	if len(otherTags) == 0 {
-		return errors.ErrCliISNil
-	}
-	g.rw.RLock()
-	defer g.rw.RUnlock()
-	for _, v := range g.set {
-		if v.HaveTag(otherTags) {
-			v.Send(content)
+		err:= v.Send(content)
+		if err != nil {
+			res = append(res, v.Token())
 		}
 	}
-	return nil
+	return res
 }
 
-func (g *Group) Update(tokens ...string) {
-	g.del(tokens...)
+func (g *Group) broadcastWithTag(content []byte, tags []string) []string{
+	var res [] string
+	g.rw.RLock()
+	defer g.rw.RUnlock()
+	for _, v := range g.set {
+		if v.HaveTag(tags) {
+			err:= v.Send(content)
+			if err != nil {
+				res = append(res, v.Token())
+			}
+		}
+	}
+	return res
+}
+
+func (g *Group) calculateLoad() {
+	g.load = g.cap - g.num // cap - len
 }
