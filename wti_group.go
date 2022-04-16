@@ -87,6 +87,7 @@ func (g *Group) BatchAdd(cliS []Client) {
 	if len(cliS) == 0 {
 		return
 	}
+	g.addMany(cliS)
 }
 
 func (g *Group) BroadCast(content []byte) []string{

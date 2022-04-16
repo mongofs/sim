@@ -72,7 +72,6 @@ func TestTarget_Add(t *testing.T) {
 			}
 			So(tg.num == 25 , ShouldBeTrue)
 		})
-
 	})
 }
 
@@ -89,13 +88,66 @@ func TestTarget_Del(t *testing.T) {
 		tg.Del([]string{"1111"})
 		So(tg.num == 3,ShouldBeTrue)
 	})
-
 }
 
 
+func TestTarget_Expansion(t *testing.T) {
+	Convey("test expansion ",t, func() {
+		tg, err := NewTarget("demo",2)
+		if err !=nil {t.Fatal(err)}
+		tg.Add(&MockClient{token: "1111"})
+		tg.Add(&MockClient{token: "1222"})
+		So(tg.flag == TargetFlagNORMAL,ShouldBeTrue)
+		So(tg.num == 2,ShouldBeTrue)
+		tg.Add(&MockClient{token: "1333"})
+		So(tg.flag == TargetFLAGShouldEXTENSION,ShouldBeTrue)
+		tg.Expansion()
+		So(tg.numG ==2 ,ShouldBeTrue)
+		So(tg.flag ==TargetFlagNORMAL ,ShouldBeTrue)
+		tg.Add(&MockClient{token: "1334"})
+		So(tg.li.Back()== tg.offset,ShouldBeTrue)
+	})
+}
+
 func TestTarget_ReBalance(t *testing.T) {
 	Convey("测试重平衡",t, func() {
-		/*tg,_ := NewTarget("demo",20)
-		tg.Add()*/
+		tg, err := NewTarget("demo",2)
+		if err !=nil {t.Fatal(err)}
+		tg.Add(&MockClient{token: "1111"})
+		tg.Add(&MockClient{token: "1222"})
+		tg.Add(&MockClient{token: "1333"})
+		tg.Add(&MockClient{token: "1334"})
+		tg.Expansion()
+		node := tg.li.Front()
+		var befditrb [] int // before reBalance
+		for node != nil {
+			g:= node.Value.(*Group)
+			befditrb = append(befditrb, g.num)
+			node =node.Next()
+		}
+		tg.ReBalance()
+		var aftditrb [] int // after reBalance
+
+		node1 := tg.li.Front()
+		for node1 != nil {
+			g1:= node1.Value.(*Group)
+			aftditrb = append(aftditrb, g1.num)
+			node1 =node1.Next()
+		}
+
+		fmt.Printf("before rebanlance %v \r\n",befditrb)
+		fmt.Printf("After  rebanlance %v \r\n",aftditrb)
+		// output
+		// 4 0
+		// 2,2
+		tg.Add(&MockClient{token: "1112"})
+		tg.Add(&MockClient{token: "1254"})
+		tg.Add(&MockClient{token: "1398"})
+		tg.Add(&MockClient{token: "1389"})
+		tg.Add(&MockClient{token: "1389"})
+
+		tg.Expansion()
+		tg.ReBalance()
+
 	})
 }

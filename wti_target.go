@@ -29,6 +29,7 @@ const (
 	TargetFLAGEXTENSION                  // extension
 	TargetFLAGShouldSHRINKS              // start shrinks
 	TargetFLAGSHRINKS                    // shrinks
+	TargetFLAGShouldReBalance            // reBalance
 )
 
 // target 存放的内容是 target -> groupA->GroupB
@@ -103,8 +104,8 @@ func (t *target) Status() targetFlag {
 	return t.flag
 }
 
-func (t *target) ReBalance(){
-	 t.reBalance()
+func (t *target) ReBalance() {
+	t.reBalance()
 }
 
 // ======================================== helper =====================================
@@ -115,21 +116,23 @@ func (t *target) add(cli Client) {
 	g := t.offset.Value.(*Group)
 	if same := g.Add(cli); same {
 		return
-	} else {
-		t.num++
-		t.moveOffset()
-		return
 	}
+	t.num++
+	t.moveOffset()
+	if t.num > t.limit*t.numG && t.flag == TargetFlagNORMAL {
+		t.flag = TargetFLAGShouldEXTENSION
+	}
+	return
 }
 
-func (t *target) del(token []string){
+func (t *target) del(token []string) {
 	t.rw.Lock()
 	defer t.rw.Unlock()
 	var res []string
 	node := t.li.Front()
 	for node != nil {
 		gp := node.Value.(*Group)
-		stop,result := gp.Del(token);
+		stop, result := gp.Del(token)
 		res = append(res, result...)
 		t.num -= len(result)
 		if stop {
@@ -164,12 +167,12 @@ func (t *target) setFlag(flag targetFlag) {
 
 func (t *target) expansion() {
 	t.rw.Lock()
-	defer t.rw.RUnlock()
-
+	defer t.rw.Unlock()
 	t.setFlag(TargetFLAGEXTENSION)
 	newG := NewGroup(t.limit)
-	t.li.PushBack(list.Element{Value: newG})
-	t.reBalance()
+	t.li.PushBack(newG)
+	t.numG += 1
+	t.setFlag(TargetFlagNORMAL)
 }
 
 func (t *target) shrinks() {
@@ -217,13 +220,13 @@ func (t *target) reBalance() {
 	var lowLoadG []*Group
 	var steals []Client
 	t.rw.Lock()
-	defer t.rw.RUnlock()
+	defer t.rw.Unlock()
 	node := t.li.Front()
 	for node != nil {
 		g := node.Value.(*Group)
 		if g.Num() > avg {
 			// num >avg ,说明超载
-			steal := avg - g.Num()
+			steal := g.Num() - avg
 			st, _ := g.Move(steal)
 			steals = append(steals, st...)
 		} else {
@@ -233,11 +236,12 @@ func (t *target) reBalance() {
 				if len(steals) > diff {
 					g.BatchAdd(steals[:diff])
 					steals = steals[diff:]
+					node =node.Next()
 					continue
-				}else {
-					// 走到这里的情况
+				} else {
 					g.BatchAdd(steals)
 					steals = []Client{}
+					node = node.Next()
 					continue
 				}
 			}
@@ -247,8 +251,8 @@ func (t *target) reBalance() {
 		node = node.Next()
 	}
 
-	for _,g := range lowLoadG {
-		w :=  avg - g.Num()
+	for _, g := range lowLoadG {
+		w := avg - g.Num()
 		if w >= len(steals) {
 			g.BatchAdd(steals)
 			break
