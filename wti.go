@@ -13,10 +13,6 @@
 
 package sim
 
-import (
-	"sim/pkg/logging"
-)
-
 type targetFlag int
 
 const (
@@ -29,28 +25,14 @@ const (
 	TargetFLAGREBALANCE                  // reBalance
 )
 
-type Adder interface {
-	Add(Client)
-}
-
-type Deleter interface {
-	Del([]string) ([]string, int)
-}
-
-type Expander interface {
-	Expansion()
-}
-
-type Shrinker interface {
-	Shrinks()
+type Monitor interface {
+	Monitor() error
 }
 
 type Balancer interface {
+	Expansion()
+	Shrinks()
 	Balance()
-}
-
-type Monitor interface {
-	Monitor() error
 }
 
 type BroadCaster interface {
@@ -59,48 +41,37 @@ type BroadCaster interface {
 	BroadCastWithInnerJoinTag([]byte, []string)
 }
 
+
 // =================================== API ==============
 
-func WTIAdd(adder Adder,tag string, client Client) {
-	if adder == nil || client == nil {
+func StartWTIServer() error {
+	return wti.Run()
+}
+
+func WTIAdd(tag string, client Client) {
+	if client == nil {
 		return
 	}
-	adder.Add(client)
+	wti.Add(tag, client)
 }
 
-func WTIDel(del Deleter, token []string) error {
-	if token == nil || del == nil {
-		return nil
-	}
-	tokens, current := del.Del(token)
-	logging.Infof("sim/wti :  下线用户 %v ,剩余在线人数 ： %v", tokens, current)
-	return nil
-}
-
-func WTIBroadCast(cas BroadCaster, cont []byte) {
-	if cas == nil || cont == nil {
+func WTIBroadCast(cont []byte) {
+	if cont == nil {
 		return
 	}
-	cas.BroadCast(cont)
+	wti.BroadCast(cont)
 }
 
-func WTIBroadCastWithInnerJoinTag(cas BroadCaster, cont []byte, tags []string) {
-	if cas == nil || cont == nil || tags == nil {
+func WTIBroadCastWithInnerJoinTag(cont []byte, tags []string) {
+	if cont == nil || tags == nil {
 		return
 	}
-	cas.BroadCastWithInnerJoinTag(cont, tags)
+	wti.BroadCastWithInnerJoinTag(cont, tags)
 }
 
-func WTIBroadCastByTarget(cas BroadCaster, tc map[string][]byte) {
-	if tc == nil || cas == nil {
+func WTIBroadCastByTarget(tc map[string][]byte) {
+	if tc == nil {
 		return
 	}
-	cas.BroadCastByTarget(tc)
+	wti.BroadCastByTarget(tc)
 }
-
-func WTIMonitor(monitor Monitor) error{
-	return monitor.Monitor()
-}
-
-
-

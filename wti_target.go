@@ -62,6 +62,13 @@ func (t *target) Add(cli Client) {
 	t.add(cli)
 }
 
+func (t *target) Num ()int {
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+	return t.num
+}
+
+
 func (t *target) Del(token []string) ([]string, int) {
 	if token == nil {
 		return nil, 0
