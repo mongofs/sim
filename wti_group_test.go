@@ -65,12 +65,12 @@ func TestGroup_Del(t *testing.T) {
 		So(g.num == 2, ShouldBeTrue)
 		So(g.load == 0, ShouldBeTrue)
 
-		stop,_ := g.Del([]string{"token1"})
+		stop,_ ,_:= g.Del([]string{"token1"})
 		So(stop == true, ShouldBeTrue)
 		So(g.num == 1, ShouldBeTrue)
 		So(g.load == 1, ShouldBeTrue)
 
-		stop1,_ := g.Del([]string{"token3"})
+		stop1,_,_ := g.Del([]string{"token3"})
 		So(stop1 == false, ShouldBeTrue)
 	})
 }

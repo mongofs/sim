@@ -28,7 +28,7 @@ type log struct {
 }
 
 func (l log) Debugf(format string, args ...interface{}) {
-	l.Debug(fmt.Sprintf(format,args))
+	l.Debug(fmt.Sprintf(format,args...))
 }
 
 func (l log) Infof(format string, args ...interface{}) {
@@ -36,15 +36,15 @@ func (l log) Infof(format string, args ...interface{}) {
 }
 
 func (l log) Warnf(format string, args ...interface{}) {
-	l.Warn(fmt.Sprintf(format,args))
+	l.Warn(fmt.Sprintf(format,args...))
 }
 
 func (l log) Errorf(format string, args ...interface{}) {
-	l.Error(fmt.Sprintf(format,args))
+	l.Error(fmt.Sprintf(format,args...))
 }
 
 func (l log) Fatalf(format string, args ...interface{}) {
-	l.Fatal(fmt.Sprintf(format,args))
+	l.Fatal(fmt.Sprintf(format,args...))
 }
 
 

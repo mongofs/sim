@@ -21,16 +21,7 @@ import (
 	"time"
 )
 
-type targetFlag int
 
-const (
-	TargetFlagNORMAL          = iota + 1 // normal
-	TargetFLAGShouldEXTENSION            // start extension
-	TargetFLAGEXTENSION                  // extension
-	TargetFLAGShouldSHRINKS              // start shrinks
-	TargetFLAGSHRINKS                    // shrinks
-	TargetFLAGShouldReBalance            // reBalance
-)
 
 // target 存放的内容是 target -> groupA->GroupB
 type target struct {
@@ -41,6 +32,7 @@ type target struct {
 	offset *list.Element // the next user group offset
 
 	flag       targetFlag //
+	capChangeTime time.Duration
 	li         *list.List
 	limit      int   // max online user for group
 	createTime int64 // create time
@@ -70,11 +62,11 @@ func (t *target) Add(cli Client) {
 	t.add(cli)
 }
 
-func (t *target) Del(token []string) {
+func (t *target) Del(token []string) ([]string, int) {
 	if token == nil {
-		return
+		return nil, 0
 	}
-
+	return t.del(token)
 }
 
 func (t *target) BroadCast(data []byte) {
@@ -100,11 +92,17 @@ func (t *target) Expansion() {
 	t.expansion()
 }
 
+func (t *target) Shrinks() {
+	t.shrinks()
+}
+
 func (t *target) Status() targetFlag {
+	t.rw.RUnlock()
+	defer t.rw.RUnlock()
 	return t.flag
 }
 
-func (t *target) ReBalance() {
+func (t *target) Balance() {
 	t.reBalance()
 }
 
@@ -119,27 +117,24 @@ func (t *target) add(cli Client) {
 	}
 	t.num++
 	t.moveOffset()
-	if t.num > t.limit*t.numG && t.flag == TargetFlagNORMAL {
-		t.flag = TargetFLAGShouldEXTENSION
-	}
+	t.judgeExpansion()
 	return
 }
 
-func (t *target) del(token []string) {
+func (t *target) del(token []string) (res []string, current int) {
 	t.rw.Lock()
 	defer t.rw.Unlock()
-	var res []string
 	node := t.li.Front()
 	for node != nil {
 		gp := node.Value.(*Group)
-		stop, result := gp.Del(token)
+		_, result, cur := gp.Del(token)
+		current += cur
 		res = append(res, result...)
-		t.num -= len(result)
-		if stop {
-			break
-		}
 		node = node.Next()
 	}
+	t.num = current
+	t.judgeShrinks()
+	return
 }
 
 func (t *target) moveOffset() {
@@ -161,53 +156,106 @@ func (t *target) Init(name string) *target {
 }
 
 func (t *target) setFlag(flag targetFlag) {
-	logging.Infof("sim/wti : change target level %s ,target name is %s", flag, t.name)
+	flagName := ""
+	switch flag {
+	case TargetFlagNORMAL:
+		flagName = "TargetFlagNORMAL"
+	case TargetFLAGShouldEXTENSION:
+		flagName = "TargetFLAGShouldEXTENSION"
+	case TargetFLAGEXTENSION:
+		flagName = "TargetFLAGEXTENSION"
+	case TargetFLAGShouldSHRINKS:
+		flagName = "TargetFLAGShouldSHRINKS"
+	case TargetFLAGSHRINKS:
+		flagName = "TargetFLAGSHRINKS"
+	case TargetFLAGShouldReBalance:
+		flagName = "TargetFLAGShouldReBalance"
+	case TargetFLAGREBALANCE:
+		flagName = "TargetFLAGREBALANCE"
+
+	}
+	logging.Infof("sim/wti : change target level %v ,target name is %v", flagName, t.name)
 	t.flag = flag
 }
 
 func (t *target) expansion() {
 	t.rw.Lock()
 	defer t.rw.Unlock()
+	targetG := t.num / t.numG + 1
+	if t.numG >=  targetG  {
+		t.setFlag( TargetFlagNORMAL)
+		return
+	}
+	diff := targetG - t.numG
 	t.setFlag(TargetFLAGEXTENSION)
-	newG := NewGroup(t.limit)
-	t.li.PushBack(newG)
-	t.numG += 1
-	t.setFlag(TargetFlagNORMAL)
+	for i := 0 ;i< diff ; i ++ {
+		newG := NewGroup(t.limit)
+		t.li.PushBack(newG)
+		t.numG += 1
+	}
+	t.setFlag(TargetFLAGShouldReBalance)
+}
+
+func (t *target) judgeExpansion() {
+	if t.num > t.limit*t.numG && t.flag == TargetFlagNORMAL {
+		t.flag = TargetFLAGShouldEXTENSION
+	}
 }
 
 func (t *target) shrinks() {
-	// 缩容的标准是 ： 缩容标志
-	// 缩容的G的个数 ： num / limit +2
-	// 缩容的步骤： 从尾部释放，释放到具体个数
+	// 缩容的几个重要问题
+	// 1.  什么时候判断是否应该缩容 ：
+	// 2.  缩容应该由谁来判定  :  每次删除用户就需要进行判断，
+	// 3.  缩容的标准是什么 ： 总在线人数和总的G 所分摊的人数来判断需不需要缩容，但是需要额外容量规划，如果使用量低于30% 可以开启缩容
+	// 3.1 缩容的目标是： 将利用率保证在60% 左右
+	// 4.  谁来执行shrink : 应该由target 聚合层进行统一状态管理
+	t.rw.Lock()
+	t.rw.Unlock()
 	t.setFlag(TargetFLAGSHRINKS)
-	targetG := t.num/t.limit + 2
-	numG := 0
-	var temCli []Client
-	for node := t.li.Front(); node != nil; node = node.Next() {
-		numG++
-		if numG > targetG {
-			// 释放group 用户
-			nG := node.Value.(*Group)
-			clis, _ := nG.Free()
-			temCli = append(temCli, clis...)
-			// 将前置node置为空
-			prevNode := node.Prev()
-			prevNode.Next().Value = nil
-		}
+
+	targetG := (t.num*10) /(t.limit *6) + 1  // 100 / 25 = 4 , 1000 /125 =6
+	if t.numG <= targetG  {
+		t.setFlag( TargetFlagNORMAL)
+		return
 	}
 
-	dist := len(temCli)
-	avg := dist / targetG
+	diff := t.numG - targetG
 
-	for node := t.li.Front(); node != nil; node = node.Next() {
+	var free [] Client
+	var freeNode []*list.Element
+	node := t.li.Front()
+	for i := 0;i< diff ;i++ {
 		ng := node.Value.(*Group)
-		if node.Next() == nil {
-			ng.BatchAdd(temCli[:])
-		} else {
-			ng.BatchAdd(temCli[:avg])
-			temCli = temCli[avg:]
+		res,err := ng.Free()
+		if err != nil {
+			logging.Error(err)
+			break
 		}
+		free = append(free, res...)
+		t.numG --
+		if node.Next() !=nil {
+			freeNode = append(freeNode, node)
+			node = node.Next()
+			continue
+		}
+		break
 	}
+
+	for _,v := range freeNode{
+		t.li.Remove(v)
+	}
+
+	node1 := t.li.Front()
+	ng := node1.Value.(*Group)
+	ng.BatchAdd(free)
+	t.setFlag(TargetFLAGShouldReBalance)
+}
+
+func (t *target) judgeShrinks() {
+	if (t.num/t.numG)*10 < t.limit*3 && t.flag == TargetFlagNORMAL {
+		t.flag = TargetFLAGShouldSHRINKS
+	}
+	return
 }
 
 func (t *target) reBalance() {
@@ -236,7 +284,7 @@ func (t *target) reBalance() {
 				if len(steals) > diff {
 					g.BatchAdd(steals[:diff])
 					steals = steals[diff:]
-					node =node.Next()
+					node = node.Next()
 					continue
 				} else {
 					g.BatchAdd(steals)

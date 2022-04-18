@@ -70,73 +70,99 @@ func TestTarget_Add(t *testing.T) {
 				token := fmt.Sprintf("%d%d", i, i)
 				tg.Add(&MockClient{token: token})
 			}
-			So(tg.num == 25 , ShouldBeTrue)
+			So(tg.num == 25, ShouldBeTrue)
 		})
 	})
 }
 
 func TestTarget_Del(t *testing.T) {
-	Convey("测试target中删除某个用户",t, func() {
-		tg,err:= NewTarget("demo",20)
-		if err !=nil {t.Fatal(err)}
+	Convey("测试target中删除某个用户", t, func() {
+		tg, err := NewTarget("demo", 20)
+		if err != nil {
+			t.Fatal(err)
+		}
 		tg.Add(&MockClient{token: "1111"})
 		tg.Add(&MockClient{token: "1222"})
 		tg.Add(&MockClient{token: "1333"})
 		tg.Add(&MockClient{token: "1444"})
-		tg.Del([]string{"1111"})
-		So(tg.num == 3,ShouldBeTrue)
-		tg.Del([]string{"1111"})
-		So(tg.num == 3,ShouldBeTrue)
+		res1,cur1 := tg.Del([]string{"1111"})
+		So(cur1 == 3, ShouldBeTrue)
+		So(res1[0] == "1111",ShouldBeTrue)
+		res2,cur2 := tg.Del([]string{"1111"})
+		So(len(res2)==0 ,ShouldBeTrue)
+		So(cur2 == 3, ShouldBeTrue)
 	})
 }
 
-
 func TestTarget_Expansion(t *testing.T) {
-	Convey("test expansion ",t, func() {
-		tg, err := NewTarget("demo",2)
-		if err !=nil {t.Fatal(err)}
+	Convey("test expansion ", t, func() {
+		tg, err := NewTarget("demo", 2)
+		if err != nil {
+			t.Fatal(err)
+		}
 		tg.Add(&MockClient{token: "1111"})
 		tg.Add(&MockClient{token: "1222"})
-		So(tg.flag == TargetFlagNORMAL,ShouldBeTrue)
-		So(tg.num == 2,ShouldBeTrue)
+		So(tg.flag == TargetFlagNORMAL, ShouldBeTrue)
+		So(tg.num == 2, ShouldBeTrue)
 		tg.Add(&MockClient{token: "1333"})
-		So(tg.flag == TargetFLAGShouldEXTENSION,ShouldBeTrue)
+		So(tg.flag == TargetFLAGShouldEXTENSION, ShouldBeTrue)
 		tg.Expansion()
-		So(tg.numG ==2 ,ShouldBeTrue)
-		So(tg.flag ==TargetFlagNORMAL ,ShouldBeTrue)
+		So(tg.numG == 2, ShouldBeTrue)
+		So(tg.flag == TargetFlagNORMAL, ShouldBeTrue)
 		tg.Add(&MockClient{token: "1334"})
-		So(tg.li.Back()== tg.offset,ShouldBeTrue)
+		So(tg.li.Back() == tg.offset, ShouldBeTrue)
+	})
+}
+
+func TestTarget_Shrinks(t *testing.T) {
+
+	Convey("测试缩容",t, func() {
+		tg, err := NewTarget("demo", 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tg.Expansion()
+		tg.Expansion()
+		tg.Expansion()
+		tg.Expansion()
+		tg.add(&MockClient{token: "1223"})
+		tg.add(&MockClient{token: "1224"})
+		tg.add(&MockClient{token: "1225"})
+		tg.Shrinks()
+		So(tg.flag == TargetFLAGShouldReBalance,ShouldBeTrue)
 	})
 }
 
 func TestTarget_ReBalance(t *testing.T) {
-	Convey("测试重平衡",t, func() {
-		tg, err := NewTarget("demo",2)
-		if err !=nil {t.Fatal(err)}
+	Convey("测试重平衡", t, func() {
+		tg, err := NewTarget("demo", 2)
+		if err != nil {
+			t.Fatal(err)
+		}
 		tg.Add(&MockClient{token: "1111"})
 		tg.Add(&MockClient{token: "1222"})
 		tg.Add(&MockClient{token: "1333"})
 		tg.Add(&MockClient{token: "1334"})
 		tg.Expansion()
 		node := tg.li.Front()
-		var befditrb [] int // before reBalance
+		var befditrb []int // before reBalance
 		for node != nil {
-			g:= node.Value.(*Group)
+			g := node.Value.(*Group)
 			befditrb = append(befditrb, g.num)
-			node =node.Next()
+			node = node.Next()
 		}
-		tg.ReBalance()
-		var aftditrb [] int // after reBalance
+		tg.Balance()
+		var aftditrb []int // after reBalance
 
 		node1 := tg.li.Front()
 		for node1 != nil {
-			g1:= node1.Value.(*Group)
+			g1 := node1.Value.(*Group)
 			aftditrb = append(aftditrb, g1.num)
-			node1 =node1.Next()
+			node1 = node1.Next()
 		}
 
-		fmt.Printf("before rebanlance %v \r\n",befditrb)
-		fmt.Printf("After  rebanlance %v \r\n",aftditrb)
+		fmt.Printf("before rebanlance %v \r\n", befditrb)
+		fmt.Printf("After  rebanlance %v \r\n", aftditrb)
 		// output
 		// 4 0
 		// 2,2
@@ -147,7 +173,15 @@ func TestTarget_ReBalance(t *testing.T) {
 		tg.Add(&MockClient{token: "1389"})
 
 		tg.Expansion()
-		tg.ReBalance()
+		tg.Balance()
 
 	})
+}
+
+func TestTarget_BroadCast(t *testing.T) {
+
+}
+
+func TestTarget_BroadCastWithInnerJoinTag(t *testing.T) {
+
 }

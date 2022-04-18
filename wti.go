@@ -14,127 +14,93 @@
 package sim
 
 import (
-	"errors"
-	"go.uber.org/atomic"
+	"sim/pkg/logging"
 )
 
-//WTI   WebSocket Target Interface ,client 会注册到具体的taget中，所涉及到的taget操作
-// action : find ,
-type WTI interface {
+type targetFlag int
 
-	// 找到某个具体的target ，然后 cli.SetTag (*result), and the
-	Find(tags []string) []*target
-
-	// Update  如果用户下线将会通知调用这个方法
-	Update(token ...string)
-
-	// BroadCast 广播到包含标签对象
-	BroadCast(content []byte, tag ...string)
-
-	// BroadCastByTarget 广播所有内容
-	BroadCastByTarget(targetAndContent map[string][]byte)
-
-	// Distribute 获取到所有tag的用户分布
-	Distribute(tags ...string)map[string]*DistributeParam
-
-	// FlushWTI 调用方法的回收房间的策略
-	FlushWTI()
-}
-
-
-
-
-
-
-
-// 其他地方将调用这个变量，如果自己公司实现tag需要注入在程序中进行注入
-var (
-	//factoryWTI      WTI = newwti()
-	isSupportWTI     = atomic.NewBool(false)
+const (
+	TargetFlagNORMAL          = iota + 1 // normal
+	TargetFLAGShouldEXTENSION            // start extension
+	TargetFLAGEXTENSION                  // extension
+	TargetFLAGShouldSHRINKS              // start shrinks
+	TargetFLAGSHRINKS                    // shrinks
+	TargetFLAGShouldReBalance            // start reBalance
+	TargetFLAGREBALANCE                  // reBalance
 )
 
-func InjectWTI(wti WTI) {
-	//factoryWTI = wti
+type Adder interface {
+	Add(Client)
 }
 
-func SetSupport (){
-	isSupportWTI.Store(true)
+type Deleter interface {
+	Del([]string) ([]string, int)
 }
 
-var (
-	ERRNotSupportWTI = errors.New("im/plugins/wti: you should call the SetSupport func")
-)
+type Expander interface {
+	Expansion()
+}
 
-func SetTAG(cli Client, tag ...string) error {
-	if isSupportWTI.Load() == false {
-		return ERRNotSupportWTI
+type Shrinker interface {
+	Shrinks()
+}
+
+type Balancer interface {
+	Balance()
+}
+
+type Monitor interface {
+	Monitor() error
+}
+
+type BroadCaster interface {
+	BroadCast([]byte)
+	BroadCastByTarget(map[string][]byte)
+	BroadCastWithInnerJoinTag([]byte, []string)
+}
+
+// =================================== API ==============
+
+func WTIAdd(adder Adder,tag string, client Client) {
+	if adder == nil || client == nil {
+		return
 	}
-	//factory.Set(cli, tag...)
+	adder.Add(client)
+}
+
+func WTIDel(del Deleter, token []string) error {
+	if token == nil || del == nil {
+		return nil
+	}
+	tokens, current := del.Del(token)
+	logging.Infof("sim/wti :  下线用户 %v ,剩余在线人数 ： %v", tokens, current)
 	return nil
 }
 
-func DelTAG(cli Client, tag ...string) error {
-	if isSupportWTI.Load() == false {
-		return ERRNotSupportWTI
+func WTIBroadCast(cas BroadCaster, cont []byte) {
+	if cas == nil || cont == nil {
+		return
 	}
-//	factory.Del(cli, tag...)
-	return nil
+	cas.BroadCast(cont)
 }
 
-func Update(token ...string) error {
-	if isSupportWTI.Load() == false {
-		return ERRNotSupportWTI
+func WTIBroadCastWithInnerJoinTag(cas BroadCaster, cont []byte, tags []string) {
+	if cas == nil || cont == nil || tags == nil {
+		return
 	}
-//	factory.Update(token...)
-	return nil
+	cas.BroadCastWithInnerJoinTag(cont, tags)
 }
 
-func BroadCast(content []byte, tag ...string) error {
-	if isSupportWTI.Load() == false {
-		return ERRNotSupportWTI
+func WTIBroadCastByTarget(cas BroadCaster, tc map[string][]byte) {
+	if tc == nil || cas == nil {
+		return
 	}
-//	factory.BroadCast(content, tag...)
-	return nil
+	cas.BroadCastByTarget(tc)
 }
 
-func BroadCastByTarget(targetAndContent map[string][]byte) error {
-	if isSupportWTI.Load() == false {
-		return ERRNotSupportWTI
-	}
-//	factory.BroadCastByTarget(targetAndContent)
-	return nil
-}
-
-func GetClientTAGs(token string) ([]string, error) {
-	if isSupportWTI.Load() == false {
-		return nil, ERRNotSupportWTI
-	}
-//	res := factory.GetClientTAGs(token)
-	return nil, nil
-}
-
-func GetTAGCreateTime(tag string) (int64, error) {
-	if isSupportWTI.Load() == false {
-		return 0, ERRNotSupportWTI
-	}
-//	res := factory.GetTAGCreateTime(tag)
-	return 0, nil
+func WTIMonitor(monitor Monitor) error{
+	return monitor.Monitor()
 }
 
 
-func Distribute() (map[string]*DistributeParam, error) {
-	if isSupportWTI.Load() == false {
-		return nil, ERRNotSupportWTI
-	}
-//	res := factory.Distribute()
-	return nil, nil
-}
 
-
-func FlushWTI() error {
-	if isSupportWTI.Load() == false {
-		return ERRNotSupportWTI
-	}
-//	factory.FlushWTI()
-	return nil
-}

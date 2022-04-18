@@ -142,7 +142,7 @@ func Debugf(format string, args ...interface{}) {
 
 // Infof logs messages at INFO level.
 func Infof(format string, args ...interface{}) {
-	defaultLogger.Infof(format, args)
+	defaultLogger.Infof(format, args...)
 }
 
 // Warnf logs messages at WARN level.

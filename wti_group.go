@@ -65,9 +65,9 @@ func (g *Group) Num()int{
 	return g.num
 }
 
-func (g *Group) Del(tokens []string) (stop bool,success []string) {
+func (g *Group) Del(tokens []string) (stop bool,success []string,current int) {
 	if len(tokens) == 0 {
-		return true,nil
+		return true,nil,0
 	}
 	return g.del(tokens)
 }
@@ -138,7 +138,7 @@ func (g *Group) addMany(cliS []Client) {
 	g.calculateLoad()
 }
 
-func (g *Group) del(tokens []string) (clear bool,success [] string) {
+func (g *Group) del(tokens []string) (clear bool,success [] string,current int) {
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	for _, token := range tokens {
@@ -151,7 +151,7 @@ func (g *Group) del(tokens []string) (clear bool,success [] string) {
 			clear = false
 		}
 	}
-	return clear,success
+	return clear,success,g.num
 }
 
 func (g *Group) move(num int) []Client {
