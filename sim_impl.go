@@ -105,7 +105,7 @@ func (s *sim) handlerHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *sim) monitorOnline() error {
 	var interval = 10
-	logging.Infof("sim : start monitor online server , interval is %v second",interval)
+	logging.Infof("sim : start monitor online server , interval is %v second", interval)
 	for {
 		n := int64(0)
 		for _, bck := range s.bs {
@@ -117,13 +117,12 @@ func (s *sim) monitorOnline() error {
 	return nil
 }
 
-
 func (s *sim) runGrpcServer() error {
 	listen, err := net.Listen("tcp", s.opt.ServerRpcPort)
 	if err != nil {
 		return err
 	}
-	logging.Infof("sim : start GRPC server at %s ",s.opt.ServerRpcPort)
+	logging.Infof("sim : start GRPC server at %s ", s.opt.ServerRpcPort)
 	if err := s.rpc.Serve(listen); err != nil {
 		return err
 	}
@@ -162,7 +161,7 @@ func (s *sim) handlerBroadCast() error {
 	return wg.Wait()
 }
 
-func (s *sim) handlerTargetBraodCastAsync ()error{
+func (s *sim) handlerTargetBraodCastAsync() error {
 	wg := errgroup.Group{}
 	logging.Infof("sim : start handlerBroadCast ，number is %v  ", s.opt.BroadCastHandler)
 	for i := 0; i < s.opt.BroadCastHandler; i++ {
@@ -188,7 +187,6 @@ func (s *sim) close() error {
 	return nil
 }
 
-
 func initSim(opts *Options) *sim {
 	b := &sim{
 		ps:  atomic.Int64{},
@@ -204,8 +202,8 @@ func initSim(opts *Options) *sim {
 	for i := 0; i < b.opt.ServerBucketNumber; i++ {
 		b.bs[i] = newBucket(b.opt)
 	}
-	logging.Infof("sim : INIT_BUCKET_NUMBER is %v ",b.opt.ServerBucketNumber)
-	logging.Infof("sim : INIT_BUCKET_SIZE  is %v ",b.opt.BucketSize)
+	logging.Infof("sim : INIT_BUCKET_NUMBER is %v ", b.opt.ServerBucketNumber)
+	logging.Infof("sim : INIT_BUCKET_SIZE  is %v ", b.opt.BucketSize)
 
 	// prepare grpc
 	b.rpc = grpc.NewServer()
@@ -215,9 +213,9 @@ func initSim(opts *Options) *sim {
 	b.http = http.NewServeMux()
 	b.http.HandleFunc(b.opt.RouterHealth, b.handlerHealth)
 	b.http.HandleFunc(b.opt.RouterConnection, b.connection)
-	logging.Infof("sim : INIT_ROUTER_CONNECTION  is %s ",b.opt.RouterConnection)
-	logging.Infof("sim : INIT_ROUTER_HEALTH  is %s ",b.opt.RouterHealth)
-	logging.Infof("sim : INIT_VALIDATE_KEY is %s",b.opt.RouterValidateKey)
+	logging.Infof("sim : INIT_ROUTER_CONNECTION  is %s ", b.opt.RouterConnection)
+	logging.Infof("sim : INIT_ROUTER_HEALTH  is %s ", b.opt.RouterHealth)
+	logging.Infof("sim : INIT_VALIDATE_KEY is %s", b.opt.RouterValidateKey)
 	return b
 }
 

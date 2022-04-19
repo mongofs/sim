@@ -34,4 +34,5 @@ var (
 
 	ERRWTINotStartServer = errors.New("sim/wti: not start wti server ")
 	ERRWTIGroupNotClear = errors.New("sim/wti : group is not clear ")
+	ERRWTITargetNotExist = errors.New("sim/wti : target is not exist")
 )

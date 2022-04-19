@@ -49,7 +49,7 @@ func (s *set) RegisterParallelFunc() []ParallelFunc {
 	return s.run()
 }
 
-func (s *set) Add(tag string, client Client) (*target,error) {
+func (s *set) Add(tag string, client Client) (*target, error) {
 	if err := s.check(); err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (s *set) Add(tag string, client Client) (*target,error) {
 		s.mp[tag] = ctag
 		res = ctag
 	}
-	return res ,nil
+	return res, nil
 }
 
 func (s *set) BroadCast(cont []byte) error {
@@ -76,6 +76,13 @@ func (s *set) BroadCast(cont []byte) error {
 	}
 	s.broadcast(cont)
 	return nil
+}
+
+func (s *set) Info(tag string) (*targetInfo, error) {
+	if err := s.check(); err != nil {
+		return nil, err
+	}
+	return s.info(tag)
 }
 
 func (s *set) BroadCastByTarget(msg map[string][]byte) error {
@@ -90,11 +97,20 @@ func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) error {
 	if err := s.check(); err != nil {
 		return err
 	}
-	s.broadcast(cont,tags...)
+	s.broadcast(cont, tags...)
 	return nil
 }
 
 // ====================================helper ==================================
+
+func (s *set) info(tag string) (*targetInfo, error) {
+	s.rw.RLock()
+	defer s.rw.RUnlock()
+	if v, ok := s.mp[tag]; ok {
+		return v.Info(), nil
+	}
+	return nil, errors.ERRWTITargetNotExist
+}
 
 func (s *set) broadcast(cont []byte, tags ...string) {
 	s.rw.RLock()
@@ -129,8 +145,8 @@ func (s *set) broadcastByTag(msg map[string][]byte) {
 	}
 }
 
-func (s *set) run()(res []ParallelFunc) {
-	res = append(res, s.monitor,s.handleMonitor)
+func (s *set) run() (res []ParallelFunc) {
+	res = append(res, s.monitor, s.handleMonitor)
 	return
 }
 

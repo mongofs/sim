@@ -36,6 +36,16 @@ type target struct {
 	createTime    int64 // create time
 }
 
+type targetInfo struct {
+	name       string
+	online     int
+	limit      int
+	createTime int64
+	status 	   int
+	numG	   int
+	GInfo       []map[string]string
+}
+
 var targetPool = sync.Pool{New: func() interface{} {
 	return &target{
 		rw: sync.RWMutex{},
@@ -66,6 +76,10 @@ func (t *target) Init(name string) *target {
 }
 
 // ============================================= API =================================
+
+func (t *target) Info()*targetInfo {
+	return t.info()
+}
 
 func (t *target) Add(cli Client) {
 	if cli == nil {
@@ -129,6 +143,24 @@ func (t *target) Distribute() (res []int) {
 }
 
 // ======================================== helper =====================================
+
+func (t *target) info()(res *targetInfo) {
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+	res.name = t.name
+	res.limit =t.limit
+	res.online =t.num
+	res.createTime =t.createTime
+	res.status = int(t.flag)
+	var numG [] *map[string]string
+	node := t.li.Front()
+	for node != nil {
+		g := node.Value.(*Group)
+		numG = append(numG, g.Info())
+		node = node.Next()
+	}
+	return
+}
 
 func (t *target) add(cli Client) {
 	t.rw.Lock()

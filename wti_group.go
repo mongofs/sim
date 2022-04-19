@@ -15,6 +15,7 @@ package sim
 
 import (
 	"sim/pkg/errors"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -57,6 +58,17 @@ func NewGroup(cap int) *Group {
 }
 
 // ================================ action =============================
+
+func (g *Group) Info ()*map[string]string{
+	g.rw.RLock()
+	defer g.rw.RUnlock()
+	res := &map[string]string{
+		"online" : strconv.Itoa(g.num),
+		"load" : strconv.Itoa(g.load),
+		"create_time" : strconv.Itoa(int(g.createTime)),
+	}
+	return res
+}
 
 func (g *Group) Add(cli Client) (same bool) {
 	if cli == nil {

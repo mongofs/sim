@@ -47,18 +47,24 @@ func StartWTIServer() []ParallelFunc {
 	return wti.RegisterParallelFunc()
 }
 
-func WTIAdd(tag string, client Client)(*target,error) {
+func WTIAdd(tag string, client Client) (*target, error) {
 	if client == nil {
-		return nil,nil
+		return nil, nil
 	}
 	return wti.Add(tag, client)
 }
 
-func WTIBroadCast(cont []byte) {
-	if cont == nil {
+func WTIInfo(tag string) (*targetInfo, error) {
+	if len(tag) == 0 {
+		return nil, nil
+	}
+	return wti.Info(tag)
+}
+
+func WTITargetInfo(tags []string) {
+	if tags == nil {
 		return
 	}
-	wti.BroadCast(cont)
 }
 
 func WTIBroadCastByTarget(tc map[string][]byte) {
