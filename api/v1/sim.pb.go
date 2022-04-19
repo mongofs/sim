@@ -432,7 +432,7 @@ func (x *PushToClient) GetMsg() []byte {
 
 // target1 ,content1
 // target2 ,content2
-type BroadcastByWTIReq struct {
+type WTIBroadcastReq struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -440,8 +440,8 @@ type BroadcastByWTIReq struct {
 	Data map[string][]byte `protobuf:"bytes,1,rep,name=data,proto3" json:"data,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
-func (x *BroadcastByWTIReq) Reset() {
-	*x = BroadcastByWTIReq{}
+func (x *WTIBroadcastReq) Reset() {
+	*x = WTIBroadcastReq{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_sim_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -449,13 +449,13 @@ func (x *BroadcastByWTIReq) Reset() {
 	}
 }
 
-func (x *BroadcastByWTIReq) String() string {
+func (x *WTIBroadcastReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BroadcastByWTIReq) ProtoMessage() {}
+func (*WTIBroadcastReq) ProtoMessage() {}
 
-func (x *BroadcastByWTIReq) ProtoReflect() protoreflect.Message {
+func (x *WTIBroadcastReq) ProtoReflect() protoreflect.Message {
 	mi := &file_sim_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -467,29 +467,28 @@ func (x *BroadcastByWTIReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BroadcastByWTIReq.ProtoReflect.Descriptor instead.
-func (*BroadcastByWTIReq) Descriptor() ([]byte, []int) {
+// Deprecated: Use WTIBroadcastReq.ProtoReflect.Descriptor instead.
+func (*WTIBroadcastReq) Descriptor() ([]byte, []int) {
 	return file_sim_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *BroadcastByWTIReq) GetData() map[string][]byte {
+func (x *WTIBroadcastReq) GetData() map[string][]byte {
 	if x != nil {
 		return x.Data
 	}
 	return nil
 }
 
-// wti 的内容，获取到当前target人数分布
-type WTIDistributeReply struct {
+type WTIBroadcastReply struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Data map[string]*WTIDistribute `protobuf:"bytes,1,rep,name=data,proto3" json:"data,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Failed []string `protobuf:"bytes,1,rep,name=failed,proto3" json:"failed,omitempty"`
 }
 
-func (x *WTIDistributeReply) Reset() {
-	*x = WTIDistributeReply{}
+func (x *WTIBroadcastReply) Reset() {
+	*x = WTIBroadcastReply{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_sim_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -497,13 +496,13 @@ func (x *WTIDistributeReply) Reset() {
 	}
 }
 
-func (x *WTIDistributeReply) String() string {
+func (x *WTIBroadcastReply) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WTIDistributeReply) ProtoMessage() {}
+func (*WTIBroadcastReply) ProtoMessage() {}
 
-func (x *WTIDistributeReply) ProtoReflect() protoreflect.Message {
+func (x *WTIBroadcastReply) ProtoReflect() protoreflect.Message {
 	mi := &file_sim_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -515,30 +514,29 @@ func (x *WTIDistributeReply) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WTIDistributeReply.ProtoReflect.Descriptor instead.
-func (*WTIDistributeReply) Descriptor() ([]byte, []int) {
+// Deprecated: Use WTIBroadcastReply.ProtoReflect.Descriptor instead.
+func (*WTIBroadcastReply) Descriptor() ([]byte, []int) {
 	return file_sim_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *WTIDistributeReply) GetData() map[string]*WTIDistribute {
+func (x *WTIBroadcastReply) GetFailed() []string {
 	if x != nil {
-		return x.Data
+		return x.Failed
 	}
 	return nil
 }
 
-type WTIDistribute struct {
+type WtiBroadcastWithInnerJoinReq struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Tag        string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`                // 标签名称
-	Number     int64  `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`         // 在线人数
-	CreateTime int64  `protobuf:"varint,3,opt,name=createTime,proto3" json:"createTime,omitempty"` // 创建时间
+	Data []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Tags []string `protobuf:"bytes,2,rep,name=tags,proto3" json:"tags,omitempty"`
 }
 
-func (x *WTIDistribute) Reset() {
-	*x = WTIDistribute{}
+func (x *WtiBroadcastWithInnerJoinReq) Reset() {
+	*x = WtiBroadcastWithInnerJoinReq{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_sim_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -546,13 +544,13 @@ func (x *WTIDistribute) Reset() {
 	}
 }
 
-func (x *WTIDistribute) String() string {
+func (x *WtiBroadcastWithInnerJoinReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WTIDistribute) ProtoMessage() {}
+func (*WtiBroadcastWithInnerJoinReq) ProtoMessage() {}
 
-func (x *WTIDistribute) ProtoReflect() protoreflect.Message {
+func (x *WtiBroadcastWithInnerJoinReq) ProtoReflect() protoreflect.Message {
 	mi := &file_sim_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -564,30 +562,250 @@ func (x *WTIDistribute) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WTIDistribute.ProtoReflect.Descriptor instead.
-func (*WTIDistribute) Descriptor() ([]byte, []int) {
+// Deprecated: Use WtiBroadcastWithInnerJoinReq.ProtoReflect.Descriptor instead.
+func (*WtiBroadcastWithInnerJoinReq) Descriptor() ([]byte, []int) {
 	return file_sim_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *WTIDistribute) GetTag() string {
+func (x *WtiBroadcastWithInnerJoinReq) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *WtiBroadcastWithInnerJoinReq) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+type WtiBroadcastWithInnerJoinReply struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *WtiBroadcastWithInnerJoinReply) Reset() {
+	*x = WtiBroadcastWithInnerJoinReply{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_sim_proto_msgTypes[11]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *WtiBroadcastWithInnerJoinReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WtiBroadcastWithInnerJoinReply) ProtoMessage() {}
+
+func (x *WtiBroadcastWithInnerJoinReply) ProtoReflect() protoreflect.Message {
+	mi := &file_sim_proto_msgTypes[11]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WtiBroadcastWithInnerJoinReply.ProtoReflect.Descriptor instead.
+func (*WtiBroadcastWithInnerJoinReply) Descriptor() ([]byte, []int) {
+	return file_sim_proto_rawDescGZIP(), []int{11}
+}
+
+type WTITargetInfoReq struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Tag string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+}
+
+func (x *WTITargetInfoReq) Reset() {
+	*x = WTITargetInfoReq{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_sim_proto_msgTypes[12]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *WTITargetInfoReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WTITargetInfoReq) ProtoMessage() {}
+
+func (x *WTITargetInfoReq) ProtoReflect() protoreflect.Message {
+	mi := &file_sim_proto_msgTypes[12]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WTITargetInfoReq.ProtoReflect.Descriptor instead.
+func (*WTITargetInfoReq) Descriptor() ([]byte, []int) {
+	return file_sim_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *WTITargetInfoReq) GetTag() string {
 	if x != nil {
 		return x.Tag
 	}
 	return ""
 }
 
-func (x *WTIDistribute) GetNumber() int64 {
+type GInfo struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	GInfo map[string]string `protobuf:"bytes,1,rep,name=gInfo,proto3" json:"gInfo,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+}
+
+func (x *GInfo) Reset() {
+	*x = GInfo{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_sim_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GInfo) ProtoMessage() {}
+
+func (x *GInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_sim_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GInfo.ProtoReflect.Descriptor instead.
+func (*GInfo) Descriptor() ([]byte, []int) {
+	return file_sim_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GInfo) GetGInfo() map[string]string {
 	if x != nil {
-		return x.Number
+		return x.GInfo
+	}
+	return nil
+}
+
+type WTITargetInfoReply struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Tag        string   `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	Online     int32    `protobuf:"varint,2,opt,name=online,proto3" json:"online,omitempty"`
+	Limit      int32    `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	CreateTime int64    `protobuf:"varint,4,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	Status     int32    `protobuf:"varint,5,opt,name=status,proto3" json:"status,omitempty"`
+	NumG       int32    `protobuf:"varint,6,opt,name=numG,proto3" json:"numG,omitempty"`
+	GInfos     []*GInfo `protobuf:"bytes,7,rep,name=gInfos,proto3" json:"gInfos,omitempty"`
+}
+
+func (x *WTITargetInfoReply) Reset() {
+	*x = WTITargetInfoReply{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_sim_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *WTITargetInfoReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WTITargetInfoReply) ProtoMessage() {}
+
+func (x *WTITargetInfoReply) ProtoReflect() protoreflect.Message {
+	mi := &file_sim_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WTITargetInfoReply.ProtoReflect.Descriptor instead.
+func (*WTITargetInfoReply) Descriptor() ([]byte, []int) {
+	return file_sim_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *WTITargetInfoReply) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
+}
+
+func (x *WTITargetInfoReply) GetOnline() int32 {
+	if x != nil {
+		return x.Online
 	}
 	return 0
 }
 
-func (x *WTIDistribute) GetCreateTime() int64 {
+func (x *WTITargetInfoReply) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *WTITargetInfoReply) GetCreateTime() int64 {
 	if x != nil {
 		return x.CreateTime
 	}
 	return 0
+}
+
+func (x *WTITargetInfoReply) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *WTITargetInfoReply) GetNumG() int32 {
+	if x != nil {
+		return x.NumG
+	}
+	return 0
+}
+
+func (x *WTITargetInfoReply) GetGInfos() []*GInfo {
+	if x != nil {
+		return x.GInfos
+	}
+	return nil
 }
 
 var File_sim_proto protoreflect.FileDescriptor
@@ -622,55 +840,77 @@ var file_sim_proto_rawDesc = []byte{
 	0x32, 0x0a, 0x0c, 0x50, 0x75, 0x73, 0x68, 0x54, 0x6f, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x12,
 	0x10, 0x0a, 0x03, 0x73, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x03, 0x73, 0x69,
 	0x64, 0x12, 0x10, 0x0a, 0x03, 0x6d, 0x73, 0x67, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03,
-	0x6d, 0x73, 0x67, 0x22, 0x87, 0x01, 0x0a, 0x11, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73,
-	0x74, 0x42, 0x79, 0x57, 0x54, 0x49, 0x52, 0x65, 0x71, 0x12, 0x39, 0x0a, 0x04, 0x64, 0x61, 0x74,
-	0x61, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x25, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73,
-	0x69, 0x63, 0x2e, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x42, 0x79, 0x57, 0x54,
-	0x49, 0x52, 0x65, 0x71, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x04,
-	0x64, 0x61, 0x74, 0x61, 0x1a, 0x37, 0x0a, 0x09, 0x44, 0x61, 0x74, 0x61, 0x45, 0x6e, 0x74, 0x72,
-	0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03,
-	0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x0c, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0xa2, 0x01,
-	0x0a, 0x12, 0x57, 0x54, 0x49, 0x44, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65, 0x52,
-	0x65, 0x70, 0x6c, 0x79, 0x12, 0x3a, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x01, 0x20, 0x03,
-	0x28, 0x0b, 0x32, 0x26, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x57, 0x54,
-	0x49, 0x44, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6c, 0x79,
+	0x6d, 0x73, 0x67, 0x22, 0x83, 0x01, 0x0a, 0x0f, 0x57, 0x54, 0x49, 0x42, 0x72, 0x6f, 0x61, 0x64,
+	0x63, 0x61, 0x73, 0x74, 0x52, 0x65, 0x71, 0x12, 0x37, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18,
+	0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x23, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63,
+	0x2e, 0x57, 0x54, 0x49, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x52, 0x65, 0x71,
 	0x2e, 0x44, 0x61, 0x74, 0x61, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61,
-	0x1a, 0x50, 0x0a, 0x09, 0x44, 0x61, 0x74, 0x61, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a,
+	0x1a, 0x37, 0x0a, 0x09, 0x44, 0x61, 0x74, 0x61, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a,
 	0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12,
-	0x2d, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x17,
-	0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x57, 0x54, 0x49, 0x44, 0x69, 0x73,
-	0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02,
-	0x38, 0x01, 0x22, 0x59, 0x0a, 0x0d, 0x57, 0x54, 0x49, 0x44, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62,
-	0x75, 0x74, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x74, 0x61, 0x67, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x03, 0x74, 0x61, 0x67, 0x12, 0x16, 0x0a, 0x06, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x18,
-	0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x12, 0x1e, 0x0a,
-	0x0a, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x54, 0x69, 0x6d, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28,
-	0x03, 0x52, 0x0a, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x54, 0x69, 0x6d, 0x65, 0x32, 0xe1, 0x02,
-	0x0a, 0x05, 0x42, 0x61, 0x73, 0x69, 0x63, 0x12, 0x28, 0x0a, 0x04, 0x50, 0x69, 0x6e, 0x67, 0x12,
-	0x0f, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79,
-	0x1a, 0x0f, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x45, 0x6d, 0x70, 0x74,
-	0x79, 0x12, 0x30, 0x0a, 0x06, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x12, 0x0f, 0x2e, 0x69, 0x6d,
-	0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x15, 0x2e, 0x69,
-	0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x52, 0x65,
-	0x70, 0x6c, 0x79, 0x12, 0x36, 0x0a, 0x07, 0x53, 0x65, 0x6e, 0x64, 0x4d, 0x73, 0x67, 0x12, 0x14,
-	0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x53, 0x65, 0x6e, 0x64, 0x4d, 0x73,
-	0x67, 0x52, 0x65, 0x71, 0x1a, 0x15, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e,
-	0x53, 0x65, 0x6e, 0x64, 0x4d, 0x73, 0x67, 0x52, 0x65, 0x73, 0x70, 0x12, 0x3d, 0x0a, 0x09, 0x42,
-	0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x12, 0x16, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61,
-	0x73, 0x69, 0x63, 0x2e, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x52, 0x65, 0x71,
-	0x1a, 0x18, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x42, 0x72, 0x6f, 0x61,
-	0x64, 0x63, 0x61, 0x73, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x45, 0x0a, 0x0c, 0x57, 0x54,
-	0x49, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x12, 0x1b, 0x2e, 0x69, 0x6d, 0x2e,
-	0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x42,
-	0x79, 0x57, 0x54, 0x49, 0x52, 0x65, 0x71, 0x1a, 0x18, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73,
-	0x69, 0x63, 0x2e, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x52, 0x65, 0x70, 0x6c,
-	0x79, 0x12, 0x3e, 0x0a, 0x0d, 0x57, 0x54, 0x49, 0x44, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62, 0x75,
-	0x74, 0x65, 0x12, 0x0f, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x45, 0x6d,
-	0x70, 0x74, 0x79, 0x1a, 0x1c, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x57,
-	0x54, 0x49, 0x44, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6c,
-	0x79, 0x42, 0x06, 0x5a, 0x04, 0x67, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x33,
+	0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05,
+	0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0x2b, 0x0a, 0x11, 0x57, 0x54, 0x49,
+	0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x16,
+	0x0a, 0x06, 0x66, 0x61, 0x69, 0x6c, 0x65, 0x64, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x06,
+	0x66, 0x61, 0x69, 0x6c, 0x65, 0x64, 0x22, 0x46, 0x0a, 0x1c, 0x57, 0x74, 0x69, 0x42, 0x72, 0x6f,
+	0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x57, 0x69, 0x74, 0x68, 0x49, 0x6e, 0x6e, 0x65, 0x72, 0x4a,
+	0x6f, 0x69, 0x6e, 0x52, 0x65, 0x71, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x61,
+	0x67, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x09, 0x52, 0x04, 0x74, 0x61, 0x67, 0x73, 0x22, 0x20,
+	0x0a, 0x1e, 0x57, 0x74, 0x69, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x57, 0x69,
+	0x74, 0x68, 0x49, 0x6e, 0x6e, 0x65, 0x72, 0x4a, 0x6f, 0x69, 0x6e, 0x52, 0x65, 0x70, 0x6c, 0x79,
+	0x22, 0x24, 0x0a, 0x10, 0x57, 0x54, 0x49, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x49, 0x6e, 0x66,
+	0x6f, 0x52, 0x65, 0x71, 0x12, 0x10, 0x0a, 0x03, 0x74, 0x61, 0x67, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x03, 0x74, 0x61, 0x67, 0x22, 0x73, 0x0a, 0x05, 0x67, 0x49, 0x6e, 0x66, 0x6f, 0x12,
+	0x30, 0x0a, 0x05, 0x67, 0x49, 0x6e, 0x66, 0x6f, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1a,
+	0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x67, 0x49, 0x6e, 0x66, 0x6f, 0x2e,
+	0x47, 0x49, 0x6e, 0x66, 0x6f, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x05, 0x67, 0x49, 0x6e, 0x66,
+	0x6f, 0x1a, 0x38, 0x0a, 0x0a, 0x47, 0x49, 0x6e, 0x66, 0x6f, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12,
+	0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65,
+	0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0xca, 0x01, 0x0a, 0x12,
+	0x57, 0x54, 0x49, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x70,
+	0x6c, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x74, 0x61, 0x67, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x03, 0x74, 0x61, 0x67, 0x12, 0x16, 0x0a, 0x06, 0x6f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x05, 0x52, 0x06, 0x6f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x12, 0x14, 0x0a, 0x05,
+	0x6c, 0x69, 0x6d, 0x69, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x05, 0x52, 0x05, 0x6c, 0x69, 0x6d,
+	0x69, 0x74, 0x12, 0x1f, 0x0a, 0x0b, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x5f, 0x74, 0x69, 0x6d,
+	0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0a, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x54,
+	0x69, 0x6d, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x05, 0x20,
+	0x01, 0x28, 0x05, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x12, 0x0a, 0x04, 0x6e,
+	0x75, 0x6d, 0x47, 0x18, 0x06, 0x20, 0x01, 0x28, 0x05, 0x52, 0x04, 0x6e, 0x75, 0x6d, 0x47, 0x12,
+	0x27, 0x0a, 0x06, 0x67, 0x49, 0x6e, 0x66, 0x6f, 0x73, 0x18, 0x07, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x0f, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x67, 0x49, 0x6e, 0x66, 0x6f,
+	0x52, 0x06, 0x67, 0x49, 0x6e, 0x66, 0x6f, 0x73, 0x32, 0xd4, 0x03, 0x0a, 0x05, 0x42, 0x61, 0x73,
+	0x69, 0x63, 0x12, 0x28, 0x0a, 0x04, 0x50, 0x69, 0x6e, 0x67, 0x12, 0x0f, 0x2e, 0x69, 0x6d, 0x2e,
+	0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x0f, 0x2e, 0x69, 0x6d,
+	0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x12, 0x30, 0x0a, 0x06,
+	0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x12, 0x0f, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69,
+	0x63, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x15, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73,
+	0x69, 0x63, 0x2e, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x36,
+	0x0a, 0x07, 0x53, 0x65, 0x6e, 0x64, 0x4d, 0x73, 0x67, 0x12, 0x14, 0x2e, 0x69, 0x6d, 0x2e, 0x62,
+	0x61, 0x73, 0x69, 0x63, 0x2e, 0x53, 0x65, 0x6e, 0x64, 0x4d, 0x73, 0x67, 0x52, 0x65, 0x71, 0x1a,
+	0x15, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x53, 0x65, 0x6e, 0x64, 0x4d,
+	0x73, 0x67, 0x52, 0x65, 0x73, 0x70, 0x12, 0x3d, 0x0a, 0x09, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63,
+	0x61, 0x73, 0x74, 0x12, 0x16, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x42,
+	0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x52, 0x65, 0x71, 0x1a, 0x18, 0x2e, 0x69, 0x6d,
+	0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74,
+	0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x49, 0x0a, 0x0d, 0x57, 0x54, 0x49, 0x54, 0x61, 0x72, 0x67,
+	0x65, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x1a, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69,
+	0x63, 0x2e, 0x57, 0x54, 0x49, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x52,
+	0x65, 0x71, 0x1a, 0x1c, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x57, 0x54,
+	0x49, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x70, 0x6c, 0x79,
+	0x12, 0x4b, 0x0a, 0x14, 0x57, 0x54, 0x49, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74,
+	0x42, 0x79, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x12, 0x19, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61,
+	0x73, 0x69, 0x63, 0x2e, 0x57, 0x54, 0x49, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74,
+	0x52, 0x65, 0x71, 0x1a, 0x18, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x42,
+	0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x60, 0x0a,
+	0x1c, 0x57, 0x54, 0x49, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x43, 0x61, 0x73, 0x74, 0x57, 0x69, 0x74,
+	0x68, 0x49, 0x6e, 0x6e, 0x65, 0x72, 0x4a, 0x6f, 0x69, 0x6e, 0x54, 0x61, 0x67, 0x12, 0x26, 0x2e,
+	0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63, 0x2e, 0x57, 0x74, 0x69, 0x42, 0x72, 0x6f, 0x61,
+	0x64, 0x63, 0x61, 0x73, 0x74, 0x57, 0x69, 0x74, 0x68, 0x49, 0x6e, 0x6e, 0x65, 0x72, 0x4a, 0x6f,
+	0x69, 0x6e, 0x52, 0x65, 0x71, 0x1a, 0x18, 0x2e, 0x69, 0x6d, 0x2e, 0x62, 0x61, 0x73, 0x69, 0x63,
+	0x2e, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x42,
+	0x06, 0x5a, 0x04, 0x67, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -685,43 +925,49 @@ func file_sim_proto_rawDescGZIP() []byte {
 	return file_sim_proto_rawDescData
 }
 
-var file_sim_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_sim_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_sim_proto_goTypes = []interface{}{
-	(*Empty)(nil),              // 0: im.basic.Empty
-	(*Load)(nil),               // 1: im.basic.load
-	(*SendMsgReq)(nil),         // 2: im.basic.SendMsgReq
-	(*SendMsgResp)(nil),        // 3: im.basic.SendMsgResp
-	(*OnlineReply)(nil),        // 4: im.basic.OnlineReply
-	(*BroadcastReq)(nil),       // 5: im.basic.BroadcastReq
-	(*BroadcastReply)(nil),     // 6: im.basic.BroadcastReply
-	(*PushToClient)(nil),       // 7: im.basic.PushToClient
-	(*BroadcastByWTIReq)(nil),  // 8: im.basic.BroadcastByWTIReq
-	(*WTIDistributeReply)(nil), // 9: im.basic.WTIDistributeReply
-	(*WTIDistribute)(nil),      // 10: im.basic.WTIDistribute
-	nil,                        // 11: im.basic.load.TokenEntry
-	nil,                        // 12: im.basic.BroadcastByWTIReq.DataEntry
-	nil,                        // 13: im.basic.WTIDistributeReply.DataEntry
+	(*Empty)(nil),                          // 0: im.basic.Empty
+	(*Load)(nil),                           // 1: im.basic.load
+	(*SendMsgReq)(nil),                     // 2: im.basic.SendMsgReq
+	(*SendMsgResp)(nil),                    // 3: im.basic.SendMsgResp
+	(*OnlineReply)(nil),                    // 4: im.basic.OnlineReply
+	(*BroadcastReq)(nil),                   // 5: im.basic.BroadcastReq
+	(*BroadcastReply)(nil),                 // 6: im.basic.BroadcastReply
+	(*PushToClient)(nil),                   // 7: im.basic.PushToClient
+	(*WTIBroadcastReq)(nil),                // 8: im.basic.WTIBroadcastReq
+	(*WTIBroadcastReply)(nil),              // 9: im.basic.WTIBroadcastReply
+	(*WtiBroadcastWithInnerJoinReq)(nil),   // 10: im.basic.WtiBroadcastWithInnerJoinReq
+	(*WtiBroadcastWithInnerJoinReply)(nil), // 11: im.basic.WtiBroadcastWithInnerJoinReply
+	(*WTITargetInfoReq)(nil),               // 12: im.basic.WTITargetInfoReq
+	(*GInfo)(nil),                          // 13: im.basic.gInfo
+	(*WTITargetInfoReply)(nil),             // 14: im.basic.WTITargetInfoReply
+	nil,                                    // 15: im.basic.load.TokenEntry
+	nil,                                    // 16: im.basic.WTIBroadcastReq.DataEntry
+	nil,                                    // 17: im.basic.gInfo.GInfoEntry
 }
 var file_sim_proto_depIdxs = []int32{
-	11, // 0: im.basic.load.token:type_name -> im.basic.load.TokenEntry
+	15, // 0: im.basic.load.token:type_name -> im.basic.load.TokenEntry
 	1,  // 1: im.basic.SendMsgResp.filed:type_name -> im.basic.load
-	12, // 2: im.basic.BroadcastByWTIReq.data:type_name -> im.basic.BroadcastByWTIReq.DataEntry
-	13, // 3: im.basic.WTIDistributeReply.data:type_name -> im.basic.WTIDistributeReply.DataEntry
-	10, // 4: im.basic.WTIDistributeReply.DataEntry.value:type_name -> im.basic.WTIDistribute
+	16, // 2: im.basic.WTIBroadcastReq.data:type_name -> im.basic.WTIBroadcastReq.DataEntry
+	17, // 3: im.basic.gInfo.gInfo:type_name -> im.basic.gInfo.GInfoEntry
+	13, // 4: im.basic.WTITargetInfoReply.gInfos:type_name -> im.basic.gInfo
 	0,  // 5: im.basic.Basic.Ping:input_type -> im.basic.Empty
 	0,  // 6: im.basic.Basic.Online:input_type -> im.basic.Empty
 	2,  // 7: im.basic.Basic.SendMsg:input_type -> im.basic.SendMsgReq
 	5,  // 8: im.basic.Basic.Broadcast:input_type -> im.basic.BroadcastReq
-	8,  // 9: im.basic.Basic.WTIBroadcast:input_type -> im.basic.BroadcastByWTIReq
-	0,  // 10: im.basic.Basic.WTIDistribute:input_type -> im.basic.Empty
-	0,  // 11: im.basic.Basic.Ping:output_type -> im.basic.Empty
-	4,  // 12: im.basic.Basic.Online:output_type -> im.basic.OnlineReply
-	3,  // 13: im.basic.Basic.SendMsg:output_type -> im.basic.SendMsgResp
-	6,  // 14: im.basic.Basic.Broadcast:output_type -> im.basic.BroadcastReply
-	6,  // 15: im.basic.Basic.WTIBroadcast:output_type -> im.basic.BroadcastReply
-	9,  // 16: im.basic.Basic.WTIDistribute:output_type -> im.basic.WTIDistributeReply
-	11, // [11:17] is the sub-list for method output_type
-	5,  // [5:11] is the sub-list for method input_type
+	12, // 9: im.basic.Basic.WTITargetInfo:input_type -> im.basic.WTITargetInfoReq
+	8,  // 10: im.basic.Basic.WTIBroadcastByTarget:input_type -> im.basic.WTIBroadcastReq
+	10, // 11: im.basic.Basic.WTIBroadCastWithInnerJoinTag:input_type -> im.basic.WtiBroadcastWithInnerJoinReq
+	0,  // 12: im.basic.Basic.Ping:output_type -> im.basic.Empty
+	4,  // 13: im.basic.Basic.Online:output_type -> im.basic.OnlineReply
+	3,  // 14: im.basic.Basic.SendMsg:output_type -> im.basic.SendMsgResp
+	6,  // 15: im.basic.Basic.Broadcast:output_type -> im.basic.BroadcastReply
+	14, // 16: im.basic.Basic.WTITargetInfo:output_type -> im.basic.WTITargetInfoReply
+	6,  // 17: im.basic.Basic.WTIBroadcastByTarget:output_type -> im.basic.BroadcastReply
+	6,  // 18: im.basic.Basic.WTIBroadCastWithInnerJoinTag:output_type -> im.basic.BroadcastReply
+	12, // [12:19] is the sub-list for method output_type
+	5,  // [5:12] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -830,7 +1076,7 @@ func file_sim_proto_init() {
 			}
 		}
 		file_sim_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BroadcastByWTIReq); i {
+			switch v := v.(*WTIBroadcastReq); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -842,7 +1088,7 @@ func file_sim_proto_init() {
 			}
 		}
 		file_sim_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WTIDistributeReply); i {
+			switch v := v.(*WTIBroadcastReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -854,7 +1100,55 @@ func file_sim_proto_init() {
 			}
 		}
 		file_sim_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WTIDistribute); i {
+			switch v := v.(*WtiBroadcastWithInnerJoinReq); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_sim_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*WtiBroadcastWithInnerJoinReply); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_sim_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*WTITargetInfoReq); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_sim_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GInfo); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_sim_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*WTITargetInfoReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -872,7 +1166,7 @@ func file_sim_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_sim_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
@@ -901,15 +1195,11 @@ type BasicClient interface {
 	// Ping Service
 	Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	Online(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OnlineReply, error)
-	// 发送消息
 	SendMsg(ctx context.Context, in *SendMsgReq, opts ...grpc.CallOption) (*SendMsgResp, error)
-	// 广播
 	Broadcast(ctx context.Context, in *BroadcastReq, opts ...grpc.CallOption) (*BroadcastReply, error)
-	// 新增支持 v1.01
-	// 使用WTI方式进行用户广播，只支持群组下发
-	WTIBroadcast(ctx context.Context, in *BroadcastByWTIReq, opts ...grpc.CallOption) (*BroadcastReply, error)
-	// 获取到某个tag下的用户总数量
-	WTIDistribute(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*WTIDistributeReply, error)
+	WTITargetInfo(ctx context.Context, in *WTITargetInfoReq, opts ...grpc.CallOption) (*WTITargetInfoReply, error)
+	WTIBroadcastByTarget(ctx context.Context, in *WTIBroadcastReq, opts ...grpc.CallOption) (*BroadcastReply, error)
+	WTIBroadCastWithInnerJoinTag(ctx context.Context, in *WtiBroadcastWithInnerJoinReq, opts ...grpc.CallOption) (*BroadcastReply, error)
 }
 
 type basicClient struct {
@@ -956,18 +1246,27 @@ func (c *basicClient) Broadcast(ctx context.Context, in *BroadcastReq, opts ...g
 	return out, nil
 }
 
-func (c *basicClient) WTIBroadcast(ctx context.Context, in *BroadcastByWTIReq, opts ...grpc.CallOption) (*BroadcastReply, error) {
-	out := new(BroadcastReply)
-	err := c.cc.Invoke(ctx, "/im.basic.Basic/WTIBroadcast", in, out, opts...)
+func (c *basicClient) WTITargetInfo(ctx context.Context, in *WTITargetInfoReq, opts ...grpc.CallOption) (*WTITargetInfoReply, error) {
+	out := new(WTITargetInfoReply)
+	err := c.cc.Invoke(ctx, "/im.basic.Basic/WTITargetInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *basicClient) WTIDistribute(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*WTIDistributeReply, error) {
-	out := new(WTIDistributeReply)
-	err := c.cc.Invoke(ctx, "/im.basic.Basic/WTIDistribute", in, out, opts...)
+func (c *basicClient) WTIBroadcastByTarget(ctx context.Context, in *WTIBroadcastReq, opts ...grpc.CallOption) (*BroadcastReply, error) {
+	out := new(BroadcastReply)
+	err := c.cc.Invoke(ctx, "/im.basic.Basic/WTIBroadcastByTarget", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *basicClient) WTIBroadCastWithInnerJoinTag(ctx context.Context, in *WtiBroadcastWithInnerJoinReq, opts ...grpc.CallOption) (*BroadcastReply, error) {
+	out := new(BroadcastReply)
+	err := c.cc.Invoke(ctx, "/im.basic.Basic/WTIBroadCastWithInnerJoinTag", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -979,15 +1278,11 @@ type BasicServer interface {
 	// Ping Service
 	Ping(context.Context, *Empty) (*Empty, error)
 	Online(context.Context, *Empty) (*OnlineReply, error)
-	// 发送消息
 	SendMsg(context.Context, *SendMsgReq) (*SendMsgResp, error)
-	// 广播
 	Broadcast(context.Context, *BroadcastReq) (*BroadcastReply, error)
-	// 新增支持 v1.01
-	// 使用WTI方式进行用户广播，只支持群组下发
-	WTIBroadcast(context.Context, *BroadcastByWTIReq) (*BroadcastReply, error)
-	// 获取到某个tag下的用户总数量
-	WTIDistribute(context.Context, *Empty) (*WTIDistributeReply, error)
+	WTITargetInfo(context.Context, *WTITargetInfoReq) (*WTITargetInfoReply, error)
+	WTIBroadcastByTarget(context.Context, *WTIBroadcastReq) (*BroadcastReply, error)
+	WTIBroadCastWithInnerJoinTag(context.Context, *WtiBroadcastWithInnerJoinReq) (*BroadcastReply, error)
 }
 
 // UnimplementedBasicServer can be embedded to have forward compatible implementations.
@@ -1006,11 +1301,14 @@ func (*UnimplementedBasicServer) SendMsg(context.Context, *SendMsgReq) (*SendMsg
 func (*UnimplementedBasicServer) Broadcast(context.Context, *BroadcastReq) (*BroadcastReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Broadcast not implemented")
 }
-func (*UnimplementedBasicServer) WTIBroadcast(context.Context, *BroadcastByWTIReq) (*BroadcastReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WTIBroadcast not implemented")
+func (*UnimplementedBasicServer) WTITargetInfo(context.Context, *WTITargetInfoReq) (*WTITargetInfoReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WTITargetInfo not implemented")
 }
-func (*UnimplementedBasicServer) WTIDistribute(context.Context, *Empty) (*WTIDistributeReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WTIDistribute not implemented")
+func (*UnimplementedBasicServer) WTIBroadcastByTarget(context.Context, *WTIBroadcastReq) (*BroadcastReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WTIBroadcastByTarget not implemented")
+}
+func (*UnimplementedBasicServer) WTIBroadCastWithInnerJoinTag(context.Context, *WtiBroadcastWithInnerJoinReq) (*BroadcastReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WTIBroadCastWithInnerJoinTag not implemented")
 }
 
 func RegisterBasicServer(s *grpc.Server, srv BasicServer) {
@@ -1089,38 +1387,56 @@ func _Basic_Broadcast_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Basic_WTIBroadcast_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BroadcastByWTIReq)
+func _Basic_WTITargetInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WTITargetInfoReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BasicServer).WTIBroadcast(ctx, in)
+		return srv.(BasicServer).WTITargetInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/im.basic.Basic/WTIBroadcast",
+		FullMethod: "/im.basic.Basic/WTITargetInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BasicServer).WTIBroadcast(ctx, req.(*BroadcastByWTIReq))
+		return srv.(BasicServer).WTITargetInfo(ctx, req.(*WTITargetInfoReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Basic_WTIDistribute_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+func _Basic_WTIBroadcastByTarget_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WTIBroadcastReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BasicServer).WTIDistribute(ctx, in)
+		return srv.(BasicServer).WTIBroadcastByTarget(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/im.basic.Basic/WTIDistribute",
+		FullMethod: "/im.basic.Basic/WTIBroadcastByTarget",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BasicServer).WTIDistribute(ctx, req.(*Empty))
+		return srv.(BasicServer).WTIBroadcastByTarget(ctx, req.(*WTIBroadcastReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Basic_WTIBroadCastWithInnerJoinTag_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WtiBroadcastWithInnerJoinReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BasicServer).WTIBroadCastWithInnerJoinTag(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/im.basic.Basic/WTIBroadCastWithInnerJoinTag",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BasicServer).WTIBroadCastWithInnerJoinTag(ctx, req.(*WtiBroadcastWithInnerJoinReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1146,12 +1462,16 @@ var _Basic_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Basic_Broadcast_Handler,
 		},
 		{
-			MethodName: "WTIBroadcast",
-			Handler:    _Basic_WTIBroadcast_Handler,
+			MethodName: "WTITargetInfo",
+			Handler:    _Basic_WTITargetInfo_Handler,
 		},
 		{
-			MethodName: "WTIDistribute",
-			Handler:    _Basic_WTIDistribute_Handler,
+			MethodName: "WTIBroadcastByTarget",
+			Handler:    _Basic_WTIBroadcastByTarget_Handler,
+		},
+		{
+			MethodName: "WTIBroadCastWithInnerJoinTag",
+			Handler:    _Basic_WTIBroadCastWithInnerJoinTag_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

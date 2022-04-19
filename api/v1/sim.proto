@@ -10,7 +10,7 @@ message Empty{}
 message load{
   // 1. load is too high
   // 2. user is not online
-  map<string,string> token =1 ; // token : err,
+  map<string, string> token = 1 ; // token : err,
 }
 
 message SendMsgReq {
@@ -50,34 +50,50 @@ message PushToClient{
 
 // target1 ,content1
 // target2 ,content2
-message BroadcastByWTIReq{
+message WTIBroadcastReq{
   map<string, bytes> data = 1;
 }
 
-// wti 的内容，获取到当前target人数分布
-message WTIDistributeReply{
-  map<string, WTIDistribute>  data = 1 ;
+message WTIBroadcastReply {
+  repeated string failed = 1 ;
 }
 
-
-message WTIDistribute {
-  string tag = 1;  // 标签名称
-  int64 number = 2 ; // 在线人数
-  int64 createTime = 3 ; // 创建时间
+message WtiBroadcastWithInnerJoinReq {
+  bytes  data = 1 ;
+  repeated  string tags = 2;
 }
+
+message WtiBroadcastWithInnerJoinReply{
+
+}
+
+message WTITargetInfoReq {
+  string tag = 1 ;
+}
+
+message gInfo{
+  map<string,string> gInfo =1 ;
+}
+
+message WTITargetInfoReply {
+  string tag = 1 ;
+  int32  online =2 ;
+  int32  limit =3;
+  int64  create_time =4 ;
+  int32  status =5 ;
+  int32  numG =6;
+  repeated  gInfo gInfos =7;
+}
+
 
 service Basic {
   // Ping Service
   rpc Ping(Empty) returns(Empty);
   rpc Online(Empty)returns (OnlineReply);
-  // 发送消息
   rpc SendMsg(SendMsgReq) returns (SendMsgResp);
-  // 广播
   rpc Broadcast(BroadcastReq) returns (BroadcastReply);
 
-  // 新增支持 v1.01
-  // 使用WTI方式进行用户广播，只支持群组下发
-  rpc WTIBroadcast(BroadcastByWTIReq) returns (BroadcastReply);
-  // 获取到某个tag下的用户总数量
-  rpc WTIDistribute(Empty)returns (WTIDistributeReply);
+  rpc WTITargetInfo (WTITargetInfoReq) returns(WTITargetInfoReply);
+  rpc WTIBroadcastByTarget(WTIBroadcastReq) returns (BroadcastReply);
+  rpc WTIBroadCastWithInnerJoinTag(WtiBroadcastWithInnerJoinReq) returns (BroadcastReply);
 }
