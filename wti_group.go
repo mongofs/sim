@@ -120,11 +120,8 @@ func (g *Group) BroadCast(content []byte) []string {
 	return g.broadcast(content)
 }
 
-func (g *Group) BroadCastWithOtherTag(content []byte, otherTags []string) ([]string, error) {
-	if len(otherTags) == 0 {
-		return nil, errors.ErrCliISNil
-	}
-	return g.broadcastWithTag(content, otherTags), nil
+func (g *Group) BroadCastWithOtherTag(content []byte, otherTags []string) []string {
+	return g.broadcastWithTag(content, otherTags)
 }
 
 // ================================= helper =============================

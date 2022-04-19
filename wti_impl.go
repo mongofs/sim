@@ -70,14 +70,6 @@ func (s *set) Add(tag string, client Client) (*target, error) {
 	return res, nil
 }
 
-func (s *set) BroadCast(cont []byte) error {
-	if err := s.check(); err != nil {
-		return err
-	}
-	s.broadcast(cont)
-	return nil
-}
-
 func (s *set) Info(tag string) (*targetInfo, error) {
 	if err := s.check(); err != nil {
 		return nil, err
@@ -85,20 +77,20 @@ func (s *set) Info(tag string) (*targetInfo, error) {
 	return s.info(tag)
 }
 
-func (s *set) BroadCastByTarget(msg map[string][]byte) error {
+func (s *set) BroadCastByTarget(msg map[string][]byte) ([]string,error) {
 	if err := s.check(); err != nil {
-		return err
+		return nil,err
 	}
-	s.broadcastByTag(msg)
-	return nil
+	return s.broadcastByTag(msg)
 }
 
-func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) error {
+func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string, error) {
 	if err := s.check(); err != nil {
-		return err
+		return nil, err
 	}
-	s.broadcast(cont, tags...)
-	return nil
+
+	res := s.broadcast(cont, tags...)
+	return res, nil
 }
 
 // ====================================helper ==================================
@@ -112,7 +104,7 @@ func (s *set) info(tag string) (*targetInfo, error) {
 	return nil, errors.ERRWTITargetNotExist
 }
 
-func (s *set) broadcast(cont []byte, tags ...string) {
+func (s *set) broadcast(cont []byte, tags ...string) (res []string) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
 	if len(tags) != 0 {
@@ -127,22 +119,26 @@ func (s *set) broadcast(cont []byte, tags ...string) {
 				}
 			}
 		}
-		mint.BroadCastWithInnerJoinTag(cont, tags)
+		res = append(res, mint.BroadCastWithInnerJoinTag(cont, tags)...)
 		return
 	}
+
 	for _, v := range s.mp {
-		v.BroadCast(cont)
+		res = append(res, v.BroadCast(cont)...)
 	}
+	return
 }
 
-func (s *set) broadcastByTag(msg map[string][]byte) {
+func (s *set) broadcastByTag(msg map[string][]byte) ([]string, error) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
+	var res []string
 	for tagN, cont := range msg {
 		if tar, ok := s.mp[tagN]; ok {
-			tar.BroadCast(cont)
+			res = append(res, tar.BroadCast(cont)...)
 		}
 	}
+	return res, nil
 }
 
 func (s *set) run() (res []ParallelFunc) {

@@ -49,9 +49,9 @@ func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp,
 	for _, token := range req.Token {
 		bs := s.bucket(token)
 		err = bs.send(req.Data, token, false)
-		if err!=nil {
-			fail[token]= err.Error()
-		}else{
+		if err != nil {
+			fail[token] = err.Error()
+		} else {
 			success = append(success, token)
 		}
 	}
@@ -64,11 +64,41 @@ func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp,
 	return result, err
 }
 
-func (s *sim) WTIDistribute(ctx context.Context, req *im.Empty) (*im.WTIDistributeReply, error) {
-	return nil,nil
+// 获取某个TAG 的在线分布情况
+func (s *sim) WTITargetInfo(ctx context.Context,req *im.WTITargetInfoReq) (*im.WTITargetInfoReply, error) {
+	res,err := WTIInfo(req.Tag)
+	if err !=nil {
+		return nil,err
+	}
+	var gInfos []*im.GInfo
+	for _,v := range res.GInfo {
+		gInfos = append(gInfos, &im.GInfo{GInfo:v})
+	}
+	result := &im.WTITargetInfoReply{
+		Tag:        res.name,
+		Online:     int32(res.online),
+		Limit:      int32(res.limit),
+		CreateTime: res.createTime,
+		Status:     int32(res.status),
+		NumG:       int32(res.numG),
+		GInfos:   gInfos ,
+	}
+	return result,nil
 }
 
-func (s *sim) WTIBroadcast(ctx context.Context, req *im.BroadcastByWTIReq) (*im.BroadcastReply, error) {
-	return nil,nil
+// 通过分组进行广播不同的内容
+func (s *sim) WTIBroadcastByTarget(ctx context.Context,req  *im.WTIBroadcastReq) (*im.BroadcastReply, error) {
+	res ,err := WTIBroadCastByTarget(req.Data)
+	if err != nil {
+		return nil,err
+	}
+	// todo
+}
 
+func (s *sim) WTIBroadCastWithInnerJoinTag(context.Context, *im.WtiBroadcastWithInnerJoinReq) (*im.BroadcastReply, error) {
+	res ,err := WTIBroadCastByTarget(req.Data)
+	if err != nil {
+		return nil,err
+	}
+	// todo
 }

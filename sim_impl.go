@@ -40,6 +40,8 @@ type sim struct {
 	opt    *Options
 }
 
+
+
 func (s *sim) bucket(token string) *bucket {
 	idx := s.Index(token, uint32(s.opt.ServerBucketNumber))
 	return s.bs[idx]

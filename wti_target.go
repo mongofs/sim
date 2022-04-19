@@ -41,9 +41,9 @@ type targetInfo struct {
 	online     int
 	limit      int
 	createTime int64
-	status 	   int
-	numG	   int
-	GInfo       []map[string]string
+	status     int
+	numG       int
+	GInfo      []map[string]string
 }
 
 var targetPool = sync.Pool{New: func() interface{} {
@@ -77,7 +77,7 @@ func (t *target) Init(name string) *target {
 
 // ============================================= API =================================
 
-func (t *target) Info()*targetInfo {
+func (t *target) Info() *targetInfo {
 	return t.info()
 }
 
@@ -101,23 +101,28 @@ func (t *target) Del(token []string) ([]string, int) {
 	return t.del(token)
 }
 
-func (t *target) BroadCast(data []byte) {
+func (t *target) BroadCast(data []byte) []string {
+	t.rw.RLock()
+	defer t.rw.RUnlock()
 	node := t.li.Front()
+	var res []string
 	for node != nil {
 		g := node.Value.(*Group)
-		g.BroadCast(data)
+		res = append(res, g.BroadCast(data)...)
 		node = node.Next()
 	}
+	return res
 }
 
-func (t *target) BroadCastWithInnerJoinTag(data []byte, otherTag []string) {
+func (t *target) BroadCastWithInnerJoinTag(data []byte, otherTag []string) (res []string) {
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	node := t.li.Front()
 	for node != nil {
-		node.Value.(*Group).BroadCastWithOtherTag(data, otherTag)
+		res = append(res, node.Value.(*Group).BroadCastWithOtherTag(data, otherTag)...)
 		node = node.Next()
 	}
+	return
 }
 
 func (t *target) Expansion() {
@@ -144,15 +149,15 @@ func (t *target) Distribute() (res []int) {
 
 // ======================================== helper =====================================
 
-func (t *target) info()(res *targetInfo) {
+func (t *target) info() (res *targetInfo) {
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	res.name = t.name
-	res.limit =t.limit
-	res.online =t.num
-	res.createTime =t.createTime
+	res.limit = t.limit
+	res.online = t.num
+	res.createTime = t.createTime
 	res.status = int(t.flag)
-	var numG [] *map[string]string
+	var numG []*map[string]string
 	node := t.li.Front()
 	for node != nil {
 		g := node.Value.(*Group)
