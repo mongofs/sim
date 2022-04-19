@@ -218,12 +218,9 @@ func WithBroadCastHandler(BroadCastHandler int) OptionFunc {
 }
 
 //设置plugin内容
-func WithPluginsWTI(SupportPluginWTI bool) OptionFunc {
+func WithPluginsWTI() OptionFunc {
 	return func(b *Options) {
-		if SupportPluginWTI {
-			SetSupport()
-		}
-		b.SupportPluginWTI = SupportPluginWTI
+		b.SupportPluginWTI = true
 	}
 }
 

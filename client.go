@@ -14,7 +14,6 @@
 package sim
 
 import (
-	"errors"
 	"net/http"
 	"sync"
 )
@@ -53,10 +52,13 @@ type Client interface {
 	HaveTag(tags [] string) bool
 
 	// SetTag 为用户添加tag
-	SetTag(tags []string)error
+	SetTag(tag string)error
 
 	// DelTag 删除用户的tag
-	DelTag(tags [] string)
+	DelTag(tag  string)
+
+	// RangeTag 遍历所有tag
+	RangeTag ()(res []string)
 }
 
 type Cli struct {
@@ -66,7 +68,6 @@ type Cli struct {
 	tags   map[string]*target
 	reader *http.Request
 }
-
 
 
 func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, token *string, option *Options) (Client, error) {
@@ -87,7 +88,7 @@ func (c *Cli) Request() *http.Request {
 }
 
 func (c *Cli) HaveTag(tags []string) bool {
-	c.rw.Lock()
+	c.rw.RLock()
 	defer c.rw.RUnlock()
 	for _,tag:= range tags{
 		if _, ok := c.tags[tag]; !ok {
@@ -97,27 +98,31 @@ func (c *Cli) HaveTag(tags []string) bool {
 	return true
 }
 
-func (c *Cli) SetTag(tags []string) error{
-	if len(tags) == 0 {return errors.New("")}
+func (c *Cli) SetTag(tag string) error{
 	c.rw.Lock()
-	defer c.rw.RUnlock()
-
-	// 查找对应的tags，如果不存在就创建
-/*	targets := factoryWTI.Find(tags)
-	for _,target := range targets {
-		target.Add(c)
-		c.tags[target.name] =target
-	}*/
+	defer c.rw.Unlock()
+	tgAd ,err := WTIAdd(tag,c)
+	if err !=nil {
+		return err
+	}
+	c.tags [tag] =tgAd
 	return nil
 }
 
-func (c *Cli) DelTag(tags [] string) {
+func (c *Cli) DelTag(tag  string) {
 	c.rw.Lock()
-	defer c.rw.RUnlock()
-	for _,tag := range tags{
-		if _,ok := c.tags[tag];ok{
-			//target.Del(c.Token())
-			delete(c.tags, tag)
-		}
+	defer c.rw.Unlock()
+	if tar,ok := c.tags[tag];ok{
+		delete(c.tags, tag)
+		tar.Del([]string{c.Token()})
 	}
+}
+
+func (c *Cli) RangeTag ()(res []string) {
+	c.rw.RLock()
+	defer c.rw.RUnlock()
+	for k,_ := range c.tags{
+		res = append(res, k)
+	}
+	return res
 }

@@ -15,6 +15,7 @@ package sim
 
 import (
 	"math"
+	"sim/pkg/errors"
 	"sim/pkg/logging"
 	"sync"
 	"time"
@@ -27,6 +28,7 @@ type set struct {
 	mp map[string]*target // wti => []string
 	rw *sync.RWMutex
 
+	flag      bool
 	limit     int
 	watchTime int
 	expansion chan *target
@@ -43,59 +45,100 @@ func newSet() *set {
 
 // ======================================API =================================
 
-func (s *set) Run()error{
-	go s.monitor()
-	go s.handleMonitor()
-	return nil
+func (s *set) RegisterParallerFunc() []ParallerFunc {
+	return s.run()
 }
 
-func (s *set) Add(tag string, client Client) {
+func (s *set) Add(tag string, client Client) (*target,error) {
+	if err := s.check(); err != nil {
+		return nil, err
+	}
 	s.rw.Lock()
 	defer s.rw.Unlock()
+	var res *target
 	if target, ok := s.mp[tag]; ok {
+		res = target
 		target.Add(client)
 	} else {
 		ctag, err := NewTarget(tag, s.limit)
 		if err != nil {
-			logging.Error(err)
+			return nil, err
 		}
 		s.mp[tag] = ctag
+		res = ctag
 	}
+	return res ,nil
 }
 
-func (s *set) BroadCast(cont []byte) {
+func (s *set) BroadCast(cont []byte) error {
+	if err := s.check(); err != nil {
+		return err
+	}
+	s.broadcast(cont)
+	return nil
+}
+
+func (s *set) BroadCastByTarget(msg map[string][]byte) error {
+	if err := s.check(); err != nil {
+		return err
+	}
+	s.broadcastByTag(msg)
+	return nil
+}
+
+func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) error {
+	if err := s.check(); err != nil {
+		return err
+	}
+	s.broadcast(cont,tags...)
+	return nil
+}
+
+// ====================================helper ==================================
+
+func (s *set) broadcast(cont []byte, tags ...string) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
+	if len(tags) != 0 {
+		var min int = math.MaxInt32
+		var mint *target
+		for _, tag := range tags {
+			if v, ok := s.mp[tag]; ok {
+				temN := v.Num()
+				if v.Num() < min {
+					min = temN
+					mint = v
+				}
+			}
+		}
+		mint.BroadCastWithInnerJoinTag(cont, tags)
+		return
+	}
 	for _, v := range s.mp {
 		v.BroadCast(cont)
 	}
 }
 
-func (s *set) BroadCastByTarget(msg map[string][]byte) {
+func (s *set) broadcastByTag(msg map[string][]byte) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
-	for tag, cont := range msg {
-		if tg, ok := s.mp[tag]; ok {
-			tg.BroadCast(cont)
+	for tagN, cont := range msg {
+		if tar, ok := s.mp[tagN]; ok {
+			tar.BroadCast(cont)
 		}
 	}
 }
 
-func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) {
-	s.rw.RLock()
-	defer s.rw.RUnlock()
-	var min int = math.MaxInt32
-	var mint *target
-	for _, tag := range tags {
-		if v, ok := s.mp[tag]; ok {
-			temN := v.Num()
-			if v.Num() < min {
-				min = temN
-				mint = v
-			}
-		}
+func (s *set) run()(res []ParallerFunc) {
+	res = append(res, s.monitor,s.handleMonitor)
+	return
+}
+
+func (s *set) check() error {
+	if !s.flag {
+		return errors.ERRWTINotStartServer
 	}
-	mint.BroadCastWithInnerJoinTag(cont, tags)
+	return nil
 }
 
 func (s *set) monitor() error {

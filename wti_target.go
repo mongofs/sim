@@ -21,8 +21,6 @@ import (
 	"time"
 )
 
-
-
 // target 存放的内容是 target -> groupA->GroupB
 type target struct {
 	rw     sync.RWMutex
@@ -31,11 +29,11 @@ type target struct {
 	numG   int           // online Group
 	offset *list.Element // the next user group offset
 
-	flag       targetFlag //
+	flag          targetFlag //
 	capChangeTime time.Duration
-	li         *list.List
-	limit      int   // max online user for group
-	createTime int64 // create time
+	li            *list.List
+	limit         int   // max online user for group
+	createTime    int64 // create time
 }
 
 func NewTarget(targetName string, limit int) (*target, error) {
@@ -62,12 +60,11 @@ func (t *target) Add(cli Client) {
 	t.add(cli)
 }
 
-func (t *target) Num ()int {
+func (t *target) Num() int {
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	return t.num
 }
-
 
 func (t *target) Del(token []string) ([]string, int) {
 	if token == nil {
@@ -111,6 +108,10 @@ func (t *target) Status() targetFlag {
 
 func (t *target) Balance() {
 	t.reBalance()
+}
+
+func (t *target) Distribute()(res []int) {
+	return t.distribute()
 }
 
 // ======================================== helper =====================================
@@ -181,21 +182,22 @@ func (t *target) setFlag(flag targetFlag) {
 		flagName = "TargetFLAGREBALANCE"
 
 	}
-	logging.Infof("sim/wti : change target level %v ,target name is %v", flagName, t.name)
+	_ = flagName
+	//logging.Infof("sim/wti : change target level %v ,target name is %v", flagName, t.name)
 	t.flag = flag
 }
 
 func (t *target) expansion() {
 	t.rw.Lock()
 	defer t.rw.Unlock()
-	targetG := t.num / t.numG + 1
-	if t.numG >=  targetG  {
-		t.setFlag( TargetFlagNORMAL)
+	targetG := t.num/t.limit + 1
+	if t.numG >= targetG {
+		t.setFlag(TargetFlagNORMAL)
 		return
 	}
 	diff := targetG - t.numG
 	t.setFlag(TargetFLAGEXTENSION)
-	for i := 0 ;i< diff ; i ++ {
+	for i := 0; i < diff; i++ {
 		newG := NewGroup(t.limit)
 		t.li.PushBack(newG)
 		t.numG += 1
@@ -220,27 +222,27 @@ func (t *target) shrinks() {
 	t.rw.Unlock()
 	t.setFlag(TargetFLAGSHRINKS)
 
-	targetG := (t.num*10) /(t.limit *6) + 1  // 100 / 25 = 4 , 1000 /125 =6
-	if t.numG <= targetG  {
-		t.setFlag( TargetFlagNORMAL)
+	targetG := (t.num*10)/(t.limit*6) + 1 // 100 / 25 = 4 , 1000 /125 =6
+	if t.numG <= targetG {
+		t.setFlag(TargetFlagNORMAL)
 		return
 	}
 
 	diff := t.numG - targetG
 
-	var free [] Client
+	var free []Client
 	var freeNode []*list.Element
 	node := t.li.Front()
-	for i := 0;i< diff ;i++ {
+	for i := 0; i < diff; i++ {
 		ng := node.Value.(*Group)
-		res,err := ng.Free()
+		res, err := ng.Free()
 		if err != nil {
 			logging.Error(err)
 			break
 		}
 		free = append(free, res...)
-		t.numG --
-		if node.Next() !=nil {
+		t.numG--
+		if node.Next() != nil {
 			freeNode = append(freeNode, node)
 			node = node.Next()
 			continue
@@ -248,7 +250,7 @@ func (t *target) shrinks() {
 		break
 	}
 
-	for _,v := range freeNode{
+	for _, v := range freeNode {
 		t.li.Remove(v)
 	}
 
@@ -267,7 +269,7 @@ func (t *target) judgeShrinks() {
 
 func (t *target) reBalance() {
 	// 根据当前节点进行平均每个节点的人数
-	avg := t.num / t.numG
+	avg := t.num / t.numG + 1
 
 	// 负载小于等于 10 的节点都属于 紧急节点
 	// 负载小于 0 的节点属于立刻节点
@@ -282,7 +284,8 @@ func (t *target) reBalance() {
 		if g.Num() > avg {
 			// num >avg ,说明超载
 			steal := g.Num() - avg
-			st, _ := g.Move(steal)
+			st, err := g.Move(steal)
+			if err != nil {return }
 			steals = append(steals, st...)
 		} else {
 			//  进入这里说明当前节点load 偏低
@@ -316,4 +319,15 @@ func (t *target) reBalance() {
 		steals = steals[w:]
 	}
 
+}
+
+func (t *target) distribute()(res []int) {
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+	node := t.li.Front()
+	for node != nil {
+		res = append(res,node.Value.(*Group).num)
+		node =node.Next()
+	}
+	return
 }

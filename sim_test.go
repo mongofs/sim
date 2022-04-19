@@ -47,6 +47,7 @@ func TestRun(t *testing.T) {
 				WithServerRpcPort(":8089"),
 				WithServerHttpPort(":8081"),
 				WithLoggerLevel(logging.DebugLevel),
+				WithPluginsWTI(),
 			}
 			Run(&MockValidate{},&MockReceive{},optionfunc...)
 	})

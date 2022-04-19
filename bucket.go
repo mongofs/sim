@@ -145,14 +145,15 @@ func (h *bucket) start() {
 
 func (h *bucket) delUser(token string) {
 	h.rw.Lock()
+	defer 	h.rw.Unlock()
+	_ ,ok := h.clis[token]
+	if !ok {
+		return
+	}
 	delete(h.clis, token)
-	h.rw.Unlock()
-
 	//更新在线用户数量
 	h.np.Add(-1)
 
-	// 这里去通知wti的内容
-	Update(token)
 	if h.callback != nil {
 		h.callback()
 	}

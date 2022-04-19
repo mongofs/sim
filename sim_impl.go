@@ -117,17 +117,6 @@ func (s *sim) monitorOnline() error {
 	return nil
 }
 
-func (s *sim) monitorWTI() error {
-	var interval = 20
-	logging.Infof("sim : start monitor WIT  server , interval is %v second",interval)
-	if s.opt.SupportPluginWTI {
-		for {
-			FlushWTI()
-			time.Sleep(time.Duration(interval) * time.Second)
-		}
-	}
-	return nil
-}
 
 func (s *sim) runGrpcServer() error {
 	listen, err := net.Listen("tcp", s.opt.ServerRpcPort)

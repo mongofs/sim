@@ -41,18 +41,17 @@ type BroadCaster interface {
 	BroadCastWithInnerJoinTag([]byte, []string)
 }
 
-
 // =================================== API ==============
 
-func StartWTIServer() error {
-	return wti.Run()
+func StartWTIServer() []ParallerFunc {
+	return wti.RegisterParallerFunc()
 }
 
-func WTIAdd(tag string, client Client) {
+func WTIAdd(tag string, client Client)(*target,error) {
 	if client == nil {
-		return
+		return nil,nil
 	}
-	wti.Add(tag, client)
+	return wti.Add(tag, client)
 }
 
 func WTIBroadCast(cont []byte) {
@@ -62,16 +61,16 @@ func WTIBroadCast(cont []byte) {
 	wti.BroadCast(cont)
 }
 
-func WTIBroadCastWithInnerJoinTag(cont []byte, tags []string) {
-	if cont == nil || tags == nil {
-		return
-	}
-	wti.BroadCastWithInnerJoinTag(cont, tags)
-}
-
 func WTIBroadCastByTarget(tc map[string][]byte) {
 	if tc == nil {
 		return
 	}
 	wti.BroadCastByTarget(tc)
+}
+
+func WTIBroadCastWithInnerJoinTag(cont []byte, tags []string) {
+	if cont == nil || tags == nil {
+		return
+	}
+	wti.BroadCastWithInnerJoinTag(cont, tags)
 }

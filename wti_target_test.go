@@ -19,10 +19,6 @@ import (
 	"testing"
 )
 
-func initTarget() {
-
-}
-
 func TestNewTarget(t *testing.T) {
 	Convey("create a target", t, func() {
 		Convey("create should  fail", func() {
@@ -85,11 +81,11 @@ func TestTarget_Del(t *testing.T) {
 		tg.Add(&MockClient{token: "1222"})
 		tg.Add(&MockClient{token: "1333"})
 		tg.Add(&MockClient{token: "1444"})
-		res1,cur1 := tg.Del([]string{"1111"})
+		res1, cur1 := tg.Del([]string{"1111"})
 		So(cur1 == 3, ShouldBeTrue)
-		So(res1[0] == "1111",ShouldBeTrue)
-		res2,cur2 := tg.Del([]string{"1111"})
-		So(len(res2)==0 ,ShouldBeTrue)
+		So(res1[0] == "1111", ShouldBeTrue)
+		res2, cur2 := tg.Del([]string{"1111"})
+		So(len(res2) == 0, ShouldBeTrue)
 		So(cur2 == 3, ShouldBeTrue)
 	})
 }
@@ -116,7 +112,7 @@ func TestTarget_Expansion(t *testing.T) {
 
 func TestTarget_Shrinks(t *testing.T) {
 
-	Convey("测试缩容",t, func() {
+	Convey("测试缩容", t, func() {
 		tg, err := NewTarget("demo", 10)
 		if err != nil {
 			t.Fatal(err)
@@ -129,51 +125,51 @@ func TestTarget_Shrinks(t *testing.T) {
 		tg.add(&MockClient{token: "1224"})
 		tg.add(&MockClient{token: "1225"})
 		tg.Shrinks()
-		So(tg.flag == TargetFLAGShouldReBalance,ShouldBeTrue)
+		So(tg.flag == TargetFLAGShouldReBalance, ShouldBeTrue)
 	})
 }
 
 func TestTarget_ReBalance(t *testing.T) {
 	Convey("测试重平衡", t, func() {
-		tg, err := NewTarget("demo", 2)
-		if err != nil {
-			t.Fatal(err)
-		}
-		tg.Add(&MockClient{token: "1111"})
-		tg.Add(&MockClient{token: "1222"})
-		tg.Add(&MockClient{token: "1333"})
-		tg.Add(&MockClient{token: "1334"})
-		tg.Expansion()
-		node := tg.li.Front()
-		var befditrb []int // before reBalance
-		for node != nil {
-			g := node.Value.(*Group)
-			befditrb = append(befditrb, g.num)
-			node = node.Next()
-		}
-		tg.Balance()
-		var aftditrb []int // after reBalance
-
-		node1 := tg.li.Front()
-		for node1 != nil {
-			g1 := node1.Value.(*Group)
-			aftditrb = append(aftditrb, g1.num)
-			node1 = node1.Next()
-		}
-
-		fmt.Printf("before rebanlance %v \r\n", befditrb)
-		fmt.Printf("After  rebanlance %v \r\n", aftditrb)
-		// output
-		// 4 0
-		// 2,2
-		tg.Add(&MockClient{token: "1112"})
-		tg.Add(&MockClient{token: "1254"})
-		tg.Add(&MockClient{token: "1398"})
-		tg.Add(&MockClient{token: "1389"})
-		tg.Add(&MockClient{token: "1389"})
-
-		tg.Expansion()
-		tg.Balance()
+		Convey("测试容量为20",func() {
+			tg, err := NewTarget("demo", 20)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 200; i++ {
+				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d",i)})
+			}
+			fmt.Println(tg.Distribute())
+			tg.Expansion()
+			tg.reBalance()
+			fmt.Println(tg.Distribute())
+		})
+		Convey("测试容量为200",func() {
+			tg, err := NewTarget("demo", 200)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 200; i++ {
+				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d",i)})
+			}
+			fmt.Println(tg.Distribute())
+			tg.Expansion()
+			tg.reBalance()
+			fmt.Println(tg.Distribute())
+		})
+		Convey("测试容量为300",func() {
+			tg, err := NewTarget("demo", 300)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 200; i++ {
+				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d",i)})
+			}
+			fmt.Println(tg.Distribute())
+			tg.Expansion()
+			tg.reBalance()
+			fmt.Println(tg.Distribute())
+		})
 
 	})
 }

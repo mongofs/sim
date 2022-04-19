@@ -31,4 +31,6 @@ var (
 
 	ErrGroupBadParam = errors.New("sim/wti :  bad param ")
 
+
+	ERRWTINotStartServer = errors.New("sim/wti: not start wti server ")
 )

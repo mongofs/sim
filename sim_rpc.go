@@ -65,29 +65,10 @@ func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp,
 }
 
 func (s *sim) WTIDistribute(ctx context.Context, req *im.Empty) (*im.WTIDistributeReply, error) {
-	distribute, err := Distribute()
-	if err != nil {
-		return nil, err
-	}
-
-	var result = map[string]*im.WTIDistribute{}
-	for k, v := range distribute {
-		data := &im.WTIDistribute{
-			Tag:        v.TagName,
-			Number:     v.Onlines,
-			CreateTime: v.CreateTime,
-		}
-		result[k] = data
-	}
-	return &im.WTIDistributeReply{
-		Data: result,
-	}, nil
+	return nil,nil
 }
 
 func (s *sim) WTIBroadcast(ctx context.Context, req *im.BroadcastByWTIReq) (*im.BroadcastReply, error) {
-	var err error
-	err = BroadCastByTarget(req.Data)
-	return &im.BroadcastReply{
-		Size: int64(len(s.buffer)),
-	}, err
+	return nil,nil
+
 }

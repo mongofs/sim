@@ -24,6 +24,18 @@ type MockClient struct {
 	tag map[string]string
 }
 
+func (m MockClient) SetTag(tag string) error {
+	panic("implement me")
+}
+
+func (m MockClient) DelTag(tag string) {
+	panic("implement me")
+}
+
+func (m MockClient) RangeTag() (res []string) {
+	panic("implement me")
+}
+
 func (m MockClient) HaveTag(tags []string) bool {
 	for _,v := range tags {
 		if _,ok := m.tag[v];!ok{
@@ -33,13 +45,6 @@ func (m MockClient) HaveTag(tags []string) bool {
 	return true
 }
 
-func (m MockClient) SetTag(tags []string) error {
-	panic("implement me")
-}
-
-func (m MockClient) DelTag(tags []string) {
-	panic("implement me")
-}
 
 func (m MockClient) Send(bytes []byte) error {
 	if m.token == "token3" {return errors.New("bad push ")}

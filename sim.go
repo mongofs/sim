@@ -45,20 +45,26 @@ type Receive interface {
 	Handle(conn Connect, data []byte)
 }
 
+
+type ParallerFunc func()error
+
 func server(s *sim) error {
-	var prepareParallelFunc = []func() error{
+	var prepareParallelFunc = []ParallerFunc {
 		// 启用单独goroutine 进行监控
 		s.monitorOnline,
-		s.monitorWTI,
 		// 启用单独goroutine 进行运行
 		s.runGrpcServer,
 		s.runHttpServer,
 		s.handlerBroadCast,
 	}
+	if s.opt.SupportPluginWTI {
+		wtiParaller := StartWTIServer()
+		prepareParallelFunc = append(prepareParallelFunc, wtiParaller...)
+	}
 	return parallel(prepareParallelFunc...)
 }
 
-func parallel(parallels ...func() error) error {
+func parallel(parallels ... ParallerFunc) error {
 	wg := errgroup.Group{}
 	for _, v := range parallels {
 		wg.Go(v)
