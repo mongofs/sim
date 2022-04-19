@@ -162,7 +162,6 @@ func (s *sim) handlerBroadCast() error {
 	return wg.Wait()
 }
 
-// todo
 func (s *sim) handlerTargetBraodCastAsync ()error{
 	wg := errgroup.Group{}
 	logging.Infof("sim : start handlerBroadCast ，number is %v  ", s.opt.BroadCastHandler)

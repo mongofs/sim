@@ -36,19 +36,33 @@ type target struct {
 	createTime    int64 // create time
 }
 
+var targetPool = sync.Pool{New: func() interface{} {
+	return &target{
+		rw: sync.RWMutex{},
+		li: list.New(),
+	}
+}}
+
 func NewTarget(targetName string, limit int) (*target, error) {
 	if targetName == "" || limit == 0 {
 		return nil, errors.New("bad param of target")
 	}
-	res := &target{
-		name:       targetName,
-		rw:         sync.RWMutex{},
-		flag:       TargetFlagNORMAL,
-		limit:      limit,
-		createTime: time.Now().Unix(),
-	}
-	res.Init(targetName)
-	return res, nil
+
+	tg := targetPool.Get().(*target)
+	tg.name = targetName
+	tg.limit = limit
+	tg.createTime = time.Now().Unix()
+	tg.Init(targetName)
+	return tg, nil
+}
+
+func (t *target) Init(name string) *target {
+	g := NewGroup(t.limit)
+	elm := t.li.PushFront(g)
+	t.offset = elm
+	t.name = name
+	t.numG++
+	return t
 }
 
 // ============================================= API =================================
@@ -110,7 +124,7 @@ func (t *target) Balance() {
 	t.reBalance()
 }
 
-func (t *target) Distribute()(res []int) {
+func (t *target) Distribute() (res []int) {
 	return t.distribute()
 }
 
@@ -151,16 +165,6 @@ func (t *target) moveOffset() {
 	} else {
 		t.offset = t.li.Front()
 	}
-}
-
-func (t *target) Init(name string) *target {
-	t.li = list.New()
-	g := NewGroup(t.limit)
-	elm := t.li.PushFront(g)
-	t.offset = elm
-	t.name = name
-	t.numG++
-	return t
 }
 
 func (t *target) setFlag(flag targetFlag) {
@@ -269,7 +273,7 @@ func (t *target) judgeShrinks() {
 
 func (t *target) reBalance() {
 	// 根据当前节点进行平均每个节点的人数
-	avg := t.num / t.numG + 1
+	avg := t.num/t.numG + 1
 
 	// 负载小于等于 10 的节点都属于 紧急节点
 	// 负载小于 0 的节点属于立刻节点
@@ -285,7 +289,9 @@ func (t *target) reBalance() {
 			// num >avg ,说明超载
 			steal := g.Num() - avg
 			st, err := g.Move(steal)
-			if err != nil {return }
+			if err != nil {
+				return
+			}
 			steals = append(steals, st...)
 		} else {
 			//  进入这里说明当前节点load 偏低
@@ -321,13 +327,13 @@ func (t *target) reBalance() {
 
 }
 
-func (t *target) distribute()(res []int) {
+func (t *target) distribute() (res []int) {
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	node := t.li.Front()
 	for node != nil {
-		res = append(res,node.Value.(*Group).num)
-		node =node.Next()
+		res = append(res, node.Value.(*Group).num)
+		node = node.Next()
 	}
 	return
 }

@@ -45,7 +45,7 @@ func newSet() *set {
 
 // ======================================API =================================
 
-func (s *set) RegisterParallerFunc() []ParallerFunc {
+func (s *set) RegisterParallelFunc() []ParallelFunc {
 	return s.run()
 }
 
@@ -129,7 +129,7 @@ func (s *set) broadcastByTag(msg map[string][]byte) {
 	}
 }
 
-func (s *set) run()(res []ParallerFunc) {
+func (s *set) run()(res []ParallelFunc) {
 	res = append(res, s.monitor,s.handleMonitor)
 	return
 }

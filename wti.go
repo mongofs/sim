@@ -43,8 +43,8 @@ type BroadCaster interface {
 
 // =================================== API ==============
 
-func StartWTIServer() []ParallerFunc {
-	return wti.RegisterParallerFunc()
+func StartWTIServer() []ParallelFunc {
+	return wti.RegisterParallelFunc()
 }
 
 func WTIAdd(tag string, client Client)(*target,error) {

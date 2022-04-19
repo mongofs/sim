@@ -18,7 +18,6 @@ import (
 	"sim/pkg/logging"
 )
 
-
 // Discover 可以在服务启动停止的时候自动想注册中心进行注册和注销，这个实现是可选的，具体可
 // 查看option的参数，如果没有discover 就是一个单节点，也是可以启动。但是建议你在生产环境
 // 使用的时候还是以集群方式启动，一旦存在集群的方式就必须注册这个方法，就可以将所有的内容作为
@@ -46,10 +45,10 @@ type Receive interface {
 }
 
 
-type ParallerFunc func()error
+type ParallelFunc func() error
 
 func server(s *sim) error {
-	var prepareParallelFunc = []ParallerFunc {
+	var prepareParallelFunc = []ParallelFunc{
 		// 启用单独goroutine 进行监控
 		s.monitorOnline,
 		// 启用单独goroutine 进行运行
@@ -64,7 +63,7 @@ func server(s *sim) error {
 	return parallel(prepareParallelFunc...)
 }
 
-func parallel(parallels ... ParallerFunc) error {
+func parallel(parallels ...ParallelFunc) error {
 	wg := errgroup.Group{}
 	for _, v := range parallels {
 		wg.Go(v)
@@ -79,7 +78,7 @@ func Run(validate Validate, receive Receive, opts ...OptionFunc) (err error) {
 		flush  func() error
 	)
 	if options.LogPath != "" {
-		logging.FlushLogPath(options.LogPath,"test",logging.OutputStdout)
+		logging.FlushLogPath(options.LogPath, "test", logging.OutputStdout)
 	} else {
 		logger = logging.GetDefaultLogger()
 	}

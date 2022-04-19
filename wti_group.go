@@ -29,7 +29,6 @@ const (
 )
 
 type Group struct {
-	tag        *target
 	rw         *sync.RWMutex
 	flag       GroupStatus
 	load       int
@@ -38,21 +37,26 @@ type Group struct {
 	createTime int64
 }
 
+var groupPool = sync.Pool{
+	New: func() interface{} {
+		return &Group{
+			rw:  &sync.RWMutex{},
+			set: make(map[string]Client, DefaultCapacity),
+		}
+	},
+}
+
 func NewGroup(cap int) *Group {
 	if cap == 0 {
 		cap = DefaultCapacity
 	}
-	return &Group{
-		rw:         &sync.RWMutex{},
-		set:        map[string]Client{},
-		cap:        cap,
-		flag: GroupStatusNormal,
-		createTime: time.Now().Unix(),
-	}
+	grp := groupPool.Get().(*Group)
+	grp.createTime = time.Now().Unix()
+	grp.cap = cap
+	return grp
 }
 
 // ================================ action =============================
-
 
 func (g *Group) Add(cli Client) (same bool) {
 	if cli == nil {
@@ -61,13 +65,20 @@ func (g *Group) Add(cli Client) (same bool) {
 	return g.add(cli)
 }
 
-func (g *Group) Num()int{
+func (g *Group) Destroy() error {
+	if g.num != 0  {
+		return errors.ERRWTIGroupNotClear
+	}
+	return g.destroy()
+}
+
+func (g *Group) Num() int {
 	return g.num
 }
 
-func (g *Group) Del(tokens []string) (stop bool,success []string,current int) {
+func (g *Group) Del(tokens []string) (stop bool, success []string, current int) {
 	if len(tokens) == 0 {
-		return true,nil,0
+		return true, nil, 0
 	}
 	return g.del(tokens)
 }
@@ -90,18 +101,18 @@ func (g *Group) BatchAdd(cliS []Client) {
 	g.addMany(cliS)
 }
 
-func (g *Group) BroadCast(content []byte) []string{
+func (g *Group) BroadCast(content []byte) []string {
 	if content == nil {
 		return nil
 	}
 	return g.broadcast(content)
 }
 
-func (g *Group) BroadCastWithOtherTag(content []byte, otherTags []string) ([]string,error) {
+func (g *Group) BroadCastWithOtherTag(content []byte, otherTags []string) ([]string, error) {
 	if len(otherTags) == 0 {
-		return nil,errors.ErrCliISNil
+		return nil, errors.ErrCliISNil
 	}
-	return g.broadcastWithTag(content, otherTags),nil
+	return g.broadcastWithTag(content, otherTags), nil
 }
 
 // ================================= helper =============================
@@ -138,7 +149,7 @@ func (g *Group) addMany(cliS []Client) {
 	g.calculateLoad()
 }
 
-func (g *Group) del(tokens []string) (clear bool,success [] string,current int) {
+func (g *Group) del(tokens []string) (clear bool, success []string, current int) {
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	for _, token := range tokens {
@@ -151,7 +162,7 @@ func (g *Group) del(tokens []string) (clear bool,success [] string,current int) 
 			clear = false
 		}
 	}
-	return clear,success,g.num
+	return clear, success, g.num
 }
 
 func (g *Group) move(num int) []Client {
@@ -177,12 +188,12 @@ func (g *Group) move(num int) []Client {
 	return res
 }
 
-func (g *Group) broadcast(content []byte)[]string {
+func (g *Group) broadcast(content []byte) []string {
 	g.rw.RLock()
 	defer g.rw.RUnlock()
-	var res [] string
+	var res []string
 	for _, v := range g.set {
-		err:= v.Send(content)
+		err := v.Send(content)
 		if err != nil {
 			res = append(res, v.Token())
 		}
@@ -190,13 +201,13 @@ func (g *Group) broadcast(content []byte)[]string {
 	return res
 }
 
-func (g *Group) broadcastWithTag(content []byte, tags []string) []string{
-	var res [] string
+func (g *Group) broadcastWithTag(content []byte, tags []string) []string {
+	var res []string
 	g.rw.RLock()
 	defer g.rw.RUnlock()
 	for _, v := range g.set {
 		if v.HaveTag(tags) {
-			err:= v.Send(content)
+			err := v.Send(content)
 			if err != nil {
 				res = append(res, v.Token())
 			}
@@ -207,4 +218,11 @@ func (g *Group) broadcastWithTag(content []byte, tags []string) []string{
 
 func (g *Group) calculateLoad() {
 	g.load = g.cap - g.num // cap - len
+}
+
+func (g *Group) destroy() error {
+	g.cap, g.num, g.cap, g.load, g.createTime = 0, 0, 0, 0, 0
+	g.flag = GroupStatusNormal
+	groupPool.Put(g)
+	return nil
 }
