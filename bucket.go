@@ -125,17 +125,19 @@ func (h *bucket) send(data []byte, token string, Ack bool) error {
 	}
 }
 
-func (h *bucket) broadCast(data []byte, Ack bool) error {
+func (h *bucket) broadCast(data []byte, Ack bool)([]string) {
 	h.rw.RLock()
+	var res []string
 	for _, cli := range h.clis {
 		err := cli.Send(data)
 		if err != nil {
+			res = append(res, cli.Token())
 			logging.Error(err)
 			continue
 		}
 	}
 	h.rw.RUnlock()
-	return nil
+	return res
 }
 
 func (h *bucket) start() {

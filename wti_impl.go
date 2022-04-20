@@ -26,6 +26,7 @@ var wti = newSet()
 type set struct {
 	// mp tagName =>
 	mp map[string]*target // wti => []string
+	sort []*target
 	rw *sync.RWMutex
 
 	flag      bool
@@ -94,6 +95,10 @@ func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string, e
 }
 
 // ====================================helper ==================================
+
+func (s *set) list (limit ,page int) {
+
+}
 
 func (s *set) info(tag string) (*targetInfo, error) {
 	s.rw.RLock()

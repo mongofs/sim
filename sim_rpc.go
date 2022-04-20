@@ -16,7 +16,6 @@ package sim
 import (
 	"context"
 	im "sim/api/v1"
-	"sim/pkg/errors"
 )
 
 // Ping 发送ping消息
@@ -33,13 +32,8 @@ func (s *sim) Online(ctx context.Context, empty *im.Empty) (*im.OnlineReply, err
 
 // Broadcast 给所有在线用户广播
 func (s *sim) Broadcast(ctx context.Context, req *im.BroadcastReq) (*im.BroadcastReply, error) {
-	if len(s.buffer)*10 > 8*cap(s.buffer) {
-		return nil, errors.ErrUserBufferIsFull
-	}
-	s.buffer <- req.Data
-	return &im.BroadcastReply{
-		Size: int64(len(s.buffer)),
-	}, nil
+	fail := s.handlerBroadCast(req.Data,false)
+	return &im.BroadcastReply{Fail: fail},nil
 }
 
 func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp, error) {
@@ -64,15 +58,19 @@ func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp,
 	return result, err
 }
 
-// 获取某个TAG 的在线分布情况
+func (s *sim) WTITargetList(ctx context.Context, req *im.WTITargetListReq) (*im.WTITargetListInfoReply, error) {
+	return nil,nil
+}
+
+//WTITargetInfo  获取某个TAG 的在线分布情况
 func (s *sim) WTITargetInfo(ctx context.Context,req *im.WTITargetInfoReq) (*im.WTITargetInfoReply, error) {
 	res,err := WTIInfo(req.Tag)
 	if err !=nil {
 		return nil,err
 	}
-	var gInfos []*im.GInfo
+	var gInfos []*im.Info
 	for _,v := range res.GInfo {
-		gInfos = append(gInfos, &im.GInfo{GInfo:v})
+		gInfos = append(gInfos, &im.Info{Info:v})
 	}
 	result := &im.WTITargetInfoReply{
 		Tag:        res.name,
@@ -86,19 +84,22 @@ func (s *sim) WTITargetInfo(ctx context.Context,req *im.WTITargetInfoReq) (*im.W
 	return result,nil
 }
 
-// 通过分组进行广播不同的内容
+//WTIBroadcastByTarget  通过分组进行广播不同的内容
 func (s *sim) WTIBroadcastByTarget(ctx context.Context,req  *im.WTIBroadcastReq) (*im.BroadcastReply, error) {
 	res ,err := WTIBroadCastByTarget(req.Data)
 	if err != nil {
 		return nil,err
 	}
-	// todo
+	result := &im.BroadcastReply{Fail: res}
+	return result,nil
 }
 
-func (s *sim) WTIBroadCastWithInnerJoinTag(context.Context, *im.WtiBroadcastWithInnerJoinReq) (*im.BroadcastReply, error) {
-	res ,err := WTIBroadCastByTarget(req.Data)
+//WTIBroadCastWithInnerJoinTag target 交集广播
+func (s *sim) WTIBroadCastWithInnerJoinTag(ctx context.Context, req *im.WtiBroadcastWithInnerJoinReq) (*im.BroadcastReply, error) {
+	res ,err := WTIBroadCastWithInnerJoinTag(req.Data,req.Tags)
 	if err != nil {
 		return nil,err
 	}
-	// todo
+	resutl := & im.BroadcastReply{Fail: res}
+	return resutl,nil
 }

@@ -25,7 +25,6 @@ import (
 
 	"github.com/zhenjl/cityhash"
 	"go.uber.org/atomic"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
 
@@ -35,12 +34,9 @@ type sim struct {
 	bs   []*bucket
 	ps   atomic.Int64
 
-	buffer chan []byte
 	cancel func()
 	opt    *Options
 }
-
-
 
 func (s *sim) bucket(token string) *bucket {
 	idx := s.Index(token, uint32(s.opt.ServerBucketNumber))
@@ -143,44 +139,12 @@ func (s *sim) runHttpServer() error {
 	return nil
 }
 
-func (s *sim) handlerBroadCast() error {
-	wg := errgroup.Group{}
-	logging.Infof("sim : start handlerBroadCast ，number is %v  ", s.opt.BroadCastHandler)
-	for i := 0; i < s.opt.BroadCastHandler; i++ {
-		wg.Go(func() error {
-			for {
-				data := <-s.buffer
-				for _, v := range s.bs {
-					err := v.broadCast(data, false)
-					if err != nil {
-						logging.Error(err)
-					}
-				}
-			}
-			return nil
-		})
+func (s *sim) handlerBroadCast(data []byte, ack bool) []string {
+	var res []string
+	for _, v := range s.bs {
+		res = append(res, v.broadCast(data, false)...)
 	}
-	return wg.Wait()
-}
-
-func (s *sim) handlerTargetBraodCastAsync() error {
-	wg := errgroup.Group{}
-	logging.Infof("sim : start handlerBroadCast ，number is %v  ", s.opt.BroadCastHandler)
-	for i := 0; i < s.opt.BroadCastHandler; i++ {
-		wg.Go(func() error {
-			for {
-				data := <-s.buffer
-				for _, v := range s.bs {
-					err := v.broadCast(data, false)
-					if err != nil {
-						logging.Error(err)
-					}
-				}
-			}
-			return nil
-		})
-	}
-	return wg.Wait()
+	return res
 }
 
 func (s *sim) close() error {
@@ -194,7 +158,6 @@ func initSim(opts *Options) *sim {
 		ps:  atomic.Int64{},
 		opt: opts,
 	}
-	b.buffer = make(chan []byte, opts.BroadCastBuffer)
 	b.ps.Store(0)
 
 	// prepare buckets

@@ -38,7 +38,7 @@ message BroadcastReq{
 }
 
 message BroadcastReply{
-  int64  size = 1 ;
+  repeated  string fail = 1 ;
 }
 
 
@@ -47,6 +47,47 @@ message PushToClient{
   bytes msg = 2 ;
 }
 
+
+
+
+
+
+
+message Info{
+  map<string, string> Info = 1 ;
+}
+
+// ============================ WTITargetList ======================
+
+message WTITargetListReq {
+  int32  limit = 1;
+  int32  page = 2 ;
+}
+
+message WTITargetListInfoReply {
+  int32  count = 1; // 总的target 数量
+  repeated  Info info = 2 ; //target info
+}
+
+// ============================ WTITargetInfo ======================
+
+
+message WTITargetInfoReq {
+  string tag = 1 ;
+}
+
+message WTITargetInfoReply {
+  string tag = 1 ;
+  int32  online = 2 ;
+  int32  limit = 3;
+  int64  create_time = 4 ;
+  int32  status = 5 ;
+  int32  numG = 6;
+  repeated  Info gInfos = 7;
+}
+
+
+// ============================ WTIBroadcastByTarget ======================
 
 // target1 ,content1
 // target2 ,content2
@@ -58,6 +99,10 @@ message WTIBroadcastReply {
   repeated string failed = 1 ;
 }
 
+// ===================WTIBroadCastWithInnerJoinTag ======================
+
+
+
 message WtiBroadcastWithInnerJoinReq {
   bytes  data = 1 ;
   repeated  string tags = 2;
@@ -67,25 +112,6 @@ message WtiBroadcastWithInnerJoinReply{
 
 }
 
-message WTITargetInfoReq {
-  string tag = 1 ;
-}
-
-message gInfo{
-  map<string,string> gInfo =1 ;
-}
-
-message WTITargetInfoReply {
-  string tag = 1 ;
-  int32  online =2 ;
-  int32  limit =3;
-  int64  create_time =4 ;
-  int32  status =5 ;
-  int32  numG =6;
-  repeated  gInfo gInfos =7;
-}
-
-
 service Basic {
   // Ping Service
   rpc Ping(Empty) returns(Empty);
@@ -93,7 +119,9 @@ service Basic {
   rpc SendMsg(SendMsgReq) returns (SendMsgResp);
   rpc Broadcast(BroadcastReq) returns (BroadcastReply);
 
-  rpc WTITargetInfo (WTITargetInfoReq) returns(WTITargetInfoReply);
-  rpc WTIBroadcastByTarget(WTIBroadcastReq) returns (BroadcastReply);
+  // wti server
+  rpc WTITargetList (WTITargetListReq) returns (WTITargetListInfoReply);
+  rpc WTITargetInfo (WTITargetInfoReq) returns (WTITargetInfoReply);
+  rpc WTIBroadcast (WTIBroadcastReq) returns (BroadcastReply);
   rpc WTIBroadCastWithInnerJoinTag(WtiBroadcastWithInnerJoinReq) returns (BroadcastReply);
 }

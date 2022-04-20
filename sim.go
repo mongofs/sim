@@ -54,7 +54,6 @@ func server(s *sim) error {
 		// 启用单独goroutine 进行运行
 		s.runGrpcServer,
 		s.runHttpServer,
-		s.handlerBroadCast,
 	}
 	if s.opt.SupportPluginWTI {
 		wtiParaller := StartWTIServer()

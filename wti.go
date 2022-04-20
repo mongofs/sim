@@ -69,9 +69,9 @@ func WTIBroadCastByTarget(tc map[string][]byte)([]string,error) {
 	return wti.BroadCastByTarget(tc)
 }
 
-func WTIBroadCastWithInnerJoinTag(cont []byte, tags []string) {
+func WTIBroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string,error) {
 	if cont == nil || tags == nil {
-		return
+		return nil,nil
 	}
-	wti.BroadCastWithInnerJoinTag(cont, tags)
+	return wti.BroadCastWithInnerJoinTag(cont, tags)
 }
