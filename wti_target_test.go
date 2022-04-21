@@ -131,39 +131,39 @@ func TestTarget_Shrinks(t *testing.T) {
 
 func TestTarget_ReBalance(t *testing.T) {
 	Convey("测试重平衡", t, func() {
-		Convey("测试容量为20",func() {
+		Convey("测试容量为20", func() {
 			tg, err := NewTarget("demo", 20)
 			if err != nil {
 				t.Fatal(err)
 			}
 			for i := 0; i < 200; i++ {
-				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d",i)})
+				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d", i)})
 			}
 			fmt.Println(tg.Distribute())
 			tg.Expansion()
 			tg.reBalance()
 			fmt.Println(tg.Distribute())
 		})
-		Convey("测试容量为200",func() {
+		Convey("测试容量为200", func() {
 			tg, err := NewTarget("demo", 200)
 			if err != nil {
 				t.Fatal(err)
 			}
 			for i := 0; i < 200; i++ {
-				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d",i)})
+				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d", i)})
 			}
 			fmt.Println(tg.Distribute())
 			tg.Expansion()
 			tg.reBalance()
 			fmt.Println(tg.Distribute())
 		})
-		Convey("测试容量为300",func() {
+		Convey("测试容量为300", func() {
 			tg, err := NewTarget("demo", 300)
 			if err != nil {
 				t.Fatal(err)
 			}
 			for i := 0; i < 200; i++ {
-				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d",i)})
+				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d", i)})
 			}
 			fmt.Println(tg.Distribute())
 			tg.Expansion()

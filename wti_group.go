@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const DefaultCapacity = 250
+const DefaultCapacity = 128
 
 type GroupStatus int
 
@@ -30,21 +30,11 @@ const (
 )
 
 type Group struct {
-	rw         *sync.RWMutex
-	flag       GroupStatus
-	load       int
-	cap, num   int
-	set        map[string]Client
-	createTime int64
-}
-
-var groupPool = sync.Pool{
-	New: func() interface{} {
-		return &Group{
-			rw:  &sync.RWMutex{},
-			set: make(map[string]Client, DefaultCapacity),
-		}
-	},
+	rw             *sync.RWMutex
+	flag           GroupStatus
+	cap, num, load int
+	set            map[string]Client
+	createTime     int64
 }
 
 func NewGroup(cap int) *Group {
@@ -59,13 +49,13 @@ func NewGroup(cap int) *Group {
 
 // ================================ action =============================
 
-func (g *Group) Info ()*map[string]string{
+func (g *Group) Info() *map[string]string {
 	g.rw.RLock()
 	defer g.rw.RUnlock()
 	res := &map[string]string{
-		"online" : strconv.Itoa(g.num),
-		"load" : strconv.Itoa(g.load),
-		"create_time" : strconv.Itoa(int(g.createTime)),
+		"online":      strconv.Itoa(g.num),
+		"load":        strconv.Itoa(g.load),
+		"create_time": strconv.Itoa(int(g.createTime)),
 	}
 	return res
 }
@@ -78,7 +68,7 @@ func (g *Group) Add(cli Client) (same bool) {
 }
 
 func (g *Group) Destroy() error {
-	if g.num != 0  {
+	if g.num != 0 {
 		return errors.ERRWTIGroupNotClear
 	}
 	return g.destroy()
@@ -120,11 +110,23 @@ func (g *Group) BroadCast(content []byte) []string {
 	return g.broadcast(content)
 }
 
-func (g *Group) BroadCastWithOtherTag(content []byte, otherTags []string) []string {
-	return g.broadcastWithTag(content, otherTags)
+func (g *Group) BroadCastWithOtherTag(content []byte, otherTags []string) ([]string, error) {
+	if len(otherTags) == 0 {
+		return nil, errors.ErrCliISNil
+	}
+	return g.broadcastWithTag(content, otherTags), nil
 }
 
-// ================================= helper =============================
+// ------------------------------------------ private ------------------------------------------
+
+var groupPool = sync.Pool{
+	New: func() interface{} {
+		return &Group{
+			rw:  &sync.RWMutex{},
+			set: make(map[string]Client, DefaultCapacity),
+		}
+	},
+}
 
 func (g *Group) add(cli Client) bool {
 	g.rw.Lock()

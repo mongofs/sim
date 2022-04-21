@@ -21,7 +21,7 @@ import (
 
 type MockClient struct {
 	token string
-	tag map[string]string
+	tag   map[string]string
 }
 
 func (m MockClient) SetTag(tag string) error {
@@ -37,18 +37,19 @@ func (m MockClient) RangeTag() (res []string) {
 }
 
 func (m MockClient) HaveTag(tags []string) bool {
-	for _,v := range tags {
-		if _,ok := m.tag[v];!ok{
+	for _, v := range tags {
+		if _, ok := m.tag[v]; !ok {
 			return false
 		}
 	}
 	return true
 }
 
-
 func (m MockClient) Send(bytes []byte) error {
-	if m.token == "token3" {return errors.New("bad push ")}
-	fmt.Printf("token %s 收到消息： %v \n\r",m.token,string(bytes))
+	if m.token == "token3" {
+		return errors.New("bad push ")
+	}
+	fmt.Printf("token %s 收到消息： %v \n\r", m.token, string(bytes))
 	return nil
 }
 
@@ -79,4 +80,3 @@ func (m MockClient) SetMessageType(messageType MessageType) {
 func (m MockClient) SetProtocol(protocol Protocol) {
 	panic("implement me")
 }
-

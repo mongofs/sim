@@ -25,7 +25,6 @@ import (
 	"go.uber.org/atomic"
 )
 
-
 type bucket struct {
 	rw sync.RWMutex
 
@@ -125,7 +124,7 @@ func (h *bucket) send(data []byte, token string, Ack bool) error {
 	}
 }
 
-func (h *bucket) broadCast(data []byte, Ack bool)([]string) {
+func (h *bucket) broadCast(data []byte, Ack bool) []string {
 	h.rw.RLock()
 	var res []string
 	for _, cli := range h.clis {
@@ -147,8 +146,8 @@ func (h *bucket) start() {
 
 func (h *bucket) delUser(token string) {
 	h.rw.Lock()
-	defer 	h.rw.Unlock()
-	_ ,ok := h.clis[token]
+	defer h.rw.Unlock()
+	_, ok := h.clis[token]
 	if !ok {
 		return
 	}

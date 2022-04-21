@@ -61,17 +61,16 @@ func WTIInfo(tag string) (*targetInfo, error) {
 	return wti.Info(tag)
 }
 
-
-func WTIBroadCastByTarget(tc map[string][]byte)([]string,error) {
+func WTIBroadCastByTarget(tc map[string][]byte) ([]string, error) {
 	if tc == nil {
-		return nil,nil
+		return nil, nil
 	}
 	return wti.BroadCastByTarget(tc)
 }
 
-func WTIBroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string,error) {
+func WTIBroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string, error) {
 	if cont == nil || tags == nil {
-		return nil,nil
+		return nil, nil
 	}
 	return wti.BroadCastWithInnerJoinTag(cont, tags)
 }

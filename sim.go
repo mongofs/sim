@@ -44,7 +44,6 @@ type Receive interface {
 	Handle(conn Connect, data []byte)
 }
 
-
 type ParallelFunc func() error
 
 func server(s *sim) error {

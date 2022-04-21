@@ -19,14 +19,13 @@ import (
 	"testing"
 )
 
-
-type MockReceive struct {}
+type MockReceive struct{}
 
 func (m MockReceive) Handle(conn Connect, data []byte) {
 	conn.ReFlushHeartBeatTime()
 }
 
-type MockValidate struct {}
+type MockValidate struct{}
 
 func (m MockValidate) Validate(token string) error {
 	return nil
@@ -40,20 +39,17 @@ func (m MockValidate) ValidateSuccess(cli Client) {
 	return
 }
 
-
 func TestRun(t *testing.T) {
-	Convey("测试创建服务器",t, func() {
-			optionfunc := []OptionFunc{
-				WithServerRpcPort(":8089"),
-				WithServerHttpPort(":8081"),
-				WithLoggerLevel(logging.DebugLevel),
-				WithPluginsWTI(),
-			}
-			Run(&MockValidate{},&MockReceive{},optionfunc...)
+	Convey("测试创建服务器", t, func() {
+		optionfunc := []OptionFunc{
+			WithServerRpcPort(":8089"),
+			WithServerHttpPort(":8081"),
+			WithLoggerLevel(logging.DebugLevel),
+			WithPluginsWTI(),
+		}
+		Run(&MockValidate{}, &MockReceive{}, optionfunc...)
 	})
 }
-
-
 
 func TestName(t *testing.T) {
 

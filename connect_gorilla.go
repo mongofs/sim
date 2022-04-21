@@ -35,22 +35,22 @@ const (
 type Protocol int
 
 const (
-	ProtocolJson     Protocol = iota +1
+	ProtocolJson Protocol = iota + 1
 	ProtocolProtobuf
 )
 
 type MessageType int
 
 const (
-	MessageTypeText   MessageType = iota + 1
+	MessageTypeText MessageType = iota + 1
 	MessageTypeBinary
 )
 
 // 当前这个连接基于 github.com/gorilla/websocket
 type gorilla struct {
-	once   sync.Once
-	con    *websocket.Conn
-	token  *string
+	once  sync.Once
+	con   *websocket.Conn
+	token *string
 	// buffer 这里是用户进行设置缓冲区的，这里和websocket的缓冲区不同的是，这里的内容是单独
 	// 按照消息个数来缓冲的，而websocket是基于tcp的缓冲区进行字节数组缓冲，本质是不同
 	// 的概念，值得注意的是，slice是指针类型，意味着传输的内容是可以很大的，在chan层
@@ -74,12 +74,12 @@ type gorilla struct {
 	// closeChan 是一个上层传入的一个chan，当用户连接关闭，可以将本身token传入closeChan
 	// 通知到bucket层以及其他层进行处理，但是bucket作为connect管理单元，在做上层channel监听
 	// 的时候尽量不要读取closeChan
-	closeChan     chan<- string
-	protocol      Protocol    // json /protobuf
-	messageType   MessageType // text /binary
+	closeChan   chan<- string
+	protocol    Protocol    // json /protobuf
+	messageType MessageType // text /binary
 }
 
-func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.ResponseWriter, r *http.Request,handlerReceive Receive) (Connect, error) {
+func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.ResponseWriter, r *http.Request, handlerReceive Receive) (Connect, error) {
 	result := &gorilla{
 		once:          sync.Once{},
 		con:           nil,
@@ -110,7 +110,7 @@ func (c *gorilla) Send(data []byte) error {
 		// 延迟重发，不过需要引入新的中间件进行消息存储，对于不是强一致性
 		// 的场景建议不用存储，在我实际公司业务，如果到这一步了就会让用户
 		// 断开连接，等用户网络好后先通过api同步数据
-		return errors.New(fmt.Sprintf("user buffer is %d ,but the length of content is %d",cap(c.buffer),len(c.buffer)))
+		return errors.New(fmt.Sprintf("user buffer is %d ,but the length of content is %d", cap(c.buffer), len(c.buffer)))
 	}
 	c.handlerProtocol(data)
 	return nil
@@ -195,7 +195,7 @@ func (c *gorilla) monitorReceive(handleReceive Receive) {
 		if err != nil {
 			goto loop
 		}
-		handleReceive.Handle(c,data)
+		handleReceive.Handle(c, data)
 	}
 loop:
 	c.close(false)

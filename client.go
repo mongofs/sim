@@ -49,16 +49,16 @@ type Client interface {
 	//============================================ Tag ===============================
 
 	// HaveTag 判断用户是否存在某个tag
-	HaveTag(tags [] string) bool
+	HaveTag(tags []string) bool
 
 	// SetTag 为用户添加tag
-	SetTag(tag string)error
+	SetTag(tag string) error
 
 	// DelTag 删除用户的tag
-	DelTag(tag  string)
+	DelTag(tag string)
 
 	// RangeTag 遍历所有tag
-	RangeTag ()(res []string)
+	RangeTag() (res []string)
 }
 
 type Cli struct {
@@ -68,7 +68,6 @@ type Cli struct {
 	tags   map[string]*target
 	reader *http.Request
 }
-
 
 func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, token *string, option *Options) (Client, error) {
 	res := &Cli{
@@ -90,7 +89,7 @@ func (c *Cli) Request() *http.Request {
 func (c *Cli) HaveTag(tags []string) bool {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
-	for _,tag:= range tags{
+	for _, tag := range tags {
 		if _, ok := c.tags[tag]; !ok {
 			return false
 		}
@@ -98,30 +97,30 @@ func (c *Cli) HaveTag(tags []string) bool {
 	return true
 }
 
-func (c *Cli) SetTag(tag string) error{
+func (c *Cli) SetTag(tag string) error {
 	c.rw.Lock()
 	defer c.rw.Unlock()
-	tgAd ,err := WTIAdd(tag,c)
-	if err !=nil {
+	tgAd, err := WTIAdd(tag, c)
+	if err != nil {
 		return err
 	}
-	c.tags [tag] =tgAd
+	c.tags[tag] = tgAd
 	return nil
 }
 
-func (c *Cli) DelTag(tag  string) {
+func (c *Cli) DelTag(tag string) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
-	if tar,ok := c.tags[tag];ok{
+	if tar, ok := c.tags[tag]; ok {
 		delete(c.tags, tag)
 		tar.Del([]string{c.Token()})
 	}
 }
 
-func (c *Cli) RangeTag ()(res []string) {
+func (c *Cli) RangeTag() (res []string) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
-	for k,_ := range c.tags{
+	for k, _ := range c.tags {
 		res = append(res, k)
 	}
 	return res

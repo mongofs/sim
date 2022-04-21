@@ -25,9 +25,9 @@ var wti = newSet()
 
 type set struct {
 	// mp tagName =>
-	mp map[string]*target // wti => []string
+	mp   map[string]*target // wti => []string
 	sort []*target
-	rw *sync.RWMutex
+	rw   *sync.RWMutex
 
 	flag      bool
 	limit     int
@@ -78,9 +78,9 @@ func (s *set) Info(tag string) (*targetInfo, error) {
 	return s.info(tag)
 }
 
-func (s *set) BroadCastByTarget(msg map[string][]byte) ([]string,error) {
+func (s *set) BroadCastByTarget(msg map[string][]byte) ([]string, error) {
 	if err := s.check(); err != nil {
-		return nil,err
+		return nil, err
 	}
 	return s.broadcastByTag(msg)
 }
@@ -96,7 +96,7 @@ func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string, e
 
 // ====================================helper ==================================
 
-func (s *set) list (limit ,page int) {
+func (s *set) list(limit, page int) {
 
 }
 

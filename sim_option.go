@@ -128,8 +128,8 @@ func DefaultOption() *Options {
 		SupportPluginWTI:   PluginWTISupport,
 
 		RouterValidateKey: DefaultRouterValidateKey,
-		RouterConnection: DefaultRouterConnection,
-		RouterHealth: DefaultRouterHealth,
+		RouterConnection:  DefaultRouterConnection,
+		RouterHealth:      DefaultRouterHealth,
 	}
 }
 
