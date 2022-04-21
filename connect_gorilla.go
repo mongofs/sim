@@ -14,30 +14,18 @@
 package sim
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"net/http"
 	"sync"
 	"time"
 
-	api "sim/api/v1"
 	"sim/pkg/logging"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 )
 
-const (
-	waitTime = 1 << 7
-)
 
-type Protocol int
-
-const (
-	ProtocolJson Protocol = iota + 1
-	ProtocolProtobuf
-)
 
 type MessageType int
 
@@ -75,7 +63,6 @@ type gorilla struct {
 	// 通知到bucket层以及其他层进行处理，但是bucket作为connect管理单元，在做上层channel监听
 	// 的时候尽量不要读取closeChan
 	closeChan   chan<- string
-	protocol    Protocol    // json /protobuf
 	messageType MessageType // text /binary
 }
 
@@ -87,7 +74,6 @@ func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.
 		buffer:        make(chan []byte, option.ClientBufferSize),
 		heartBeatTime: time.Now().Unix(),
 		closeChan:     closeChan,
-		protocol:      option.ClientProtocol,
 		messageType:   option.ClientMessageType,
 	}
 	err := result.upgrade(w, r, option.ClientReaderBufferSize, option.ClientWriteBufferSize)
@@ -112,7 +98,7 @@ func (c *gorilla) Send(data []byte) error {
 		// 断开连接，等用户网络好后先通过api同步数据
 		return errors.New(fmt.Sprintf("user buffer is %d ,but the length of content is %d", cap(c.buffer), len(c.buffer)))
 	}
-	c.handlerProtocol(data)
+	c.buffer <- data
 	return nil
 }
 
@@ -125,40 +111,12 @@ func (c *gorilla) SetMessageType(messageType MessageType) {
 	c.messageType = messageType
 }
 
-func (c *gorilla) SetProtocol(protocol Protocol) {
-	c.protocol = protocol
-}
-
 func (c *gorilla) ReFlushHeartBeatTime() {
 	c.heartBeatTime = time.Now().Unix()
 }
 
 func (c *gorilla) GetLastHeartBeatTime() int64 {
 	return c.heartBeatTime
-}
-
-func (c *gorilla) handlerProtocol(data []byte) error {
-	var (
-		sid int64
-		d   []byte
-		err error
-	)
-	basic := &api.PushToClient{
-		Sid: sid,
-		Msg: data,
-	}
-
-	switch c.protocol {
-	case ProtocolJson:
-		d, err = json.Marshal(basic)
-	case ProtocolProtobuf:
-		d, err = proto.Marshal(basic)
-	}
-	if err != nil {
-		return err
-	}
-	c.buffer <- d
-	return nil
 }
 
 func (c *gorilla) monitorSend() {
@@ -171,14 +129,13 @@ func (c *gorilla) monitorSend() {
 		data := <-c.buffer
 		startTime := time.Now()
 		err := c.con.WriteMessage(int(c.messageType), data)
+		if err != nil {
+			goto loop
+		}
 		spendTime := time.Since(startTime)
 		if spendTime > time.Duration(2)*time.Second {
 			logging.Warnf("sim : token '%v'网络状态不好，消息写入通道时间过长 :'%v'", c.token, spendTime)
 		}
-		if err != nil {
-			goto loop
-		}
-
 	}
 loop:
 	c.close(false)

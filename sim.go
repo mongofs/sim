@@ -15,7 +15,10 @@ package sim
 
 import (
 	"golang.org/x/sync/errgroup"
+	"os"
+	"os/signal"
 	"sim/pkg/logging"
+	"syscall"
 )
 
 // Discover 可以在服务启动停止的时候自动想注册中心进行注册和注销，这个实现是可选的，具体可
@@ -46,7 +49,7 @@ type Receive interface {
 
 type ParallelFunc func() error
 
-func server(s *sim) error {
+func serverParallel(s *sim) <-chan error{
 	var prepareParallelFunc = []ParallelFunc{
 		// 启用单独goroutine 进行监控
 		s.monitorOnline,
@@ -58,7 +61,11 @@ func server(s *sim) error {
 		wtiParaller := StartWTIServer()
 		prepareParallelFunc = append(prepareParallelFunc, wtiParaller...)
 	}
-	return parallel(prepareParallelFunc...)
+	ch := make(chan error)
+	go func() {
+		ch <- parallel(prepareParallelFunc...)
+	}()
+	return ch
 }
 
 func parallel(parallels ...ParallelFunc) error {
@@ -73,7 +80,6 @@ func Run(validate Validate, receive Receive, opts ...OptionFunc) (err error) {
 	options := LoadOptions(validate, receive, opts...)
 	var (
 		logger logging.Logger
-		flush  func() error
 	)
 	if options.LogPath != "" {
 		logging.FlushLogPath(options.LogPath, "test", logging.OutputStdout)
@@ -83,14 +89,28 @@ func Run(validate Validate, receive Receive, opts ...OptionFunc) (err error) {
 	if options.Logger == nil {
 		options.Logger = logger
 	}
-	defer func() {
-		if flush != nil {
-			_ = flush()
-		}
-		logging.Cleanup()
-	}()
+
 
 	// prepare the sim
 	sim := initSim(options)
-	return server(sim)
+	defer sim.close()
+	ParallelChannel :=  serverParallel(sim)
+	if options.ServerDiscover !=nil {
+		 options.ServerDiscover.Register()
+		 logging.Infof("sim : start Discover.Register success")
+		 defer func() {
+			 options.ServerDiscover.Deregister()
+			 logging.Infof("sim : start Discover.Deregister success")
+		 }()
+	}
+
+	sigs := make(chan os.Signal,1)
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	select {
+	case err := <- ParallelChannel:
+		logging.Error(err)
+	case <- sigs:
+		break
+	}
+	return
 }

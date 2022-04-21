@@ -77,6 +77,3 @@ func (m MockClient) SetMessageType(messageType MessageType) {
 	panic("implement me")
 }
 
-func (m MockClient) SetProtocol(protocol Protocol) {
-	panic("implement me")
-}

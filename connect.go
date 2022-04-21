@@ -27,8 +27,6 @@ type Connect interface {
 
 	SetMessageType(messageType MessageType)
 
-	SetProtocol(protocol Protocol)
-
 	ReFlushHeartBeatTime()
 
 	GetLastHeartBeatTime() int64

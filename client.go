@@ -43,9 +43,6 @@ type Client interface {
 	// SetMessageType 设置用户接收消息的格式
 	SetMessageType(messageType MessageType)
 
-	// SetProtocol 设置用户接收消息的协议：
-	SetProtocol(protocol Protocol)
-
 	//============================================ Tag ===============================
 
 	// HaveTag 判断用户是否存在某个tag

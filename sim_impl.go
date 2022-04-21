@@ -103,7 +103,7 @@ func (s *sim) handlerHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *sim) monitorOnline() error {
 	var interval = 10
-	logging.Infof("sim : start monitor online server , interval is %v second", interval)
+	logging.Infof("sim : start monitor online example , interval is %v second", interval)
 	for {
 		n := int64(0)
 		for _, bck := range s.bs {
@@ -120,7 +120,7 @@ func (s *sim) runGrpcServer() error {
 	if err != nil {
 		return err
 	}
-	logging.Infof("sim : start GRPC server at %s ", s.opt.ServerRpcPort)
+	logging.Infof("sim : start GRPC example at %s ", s.opt.ServerRpcPort)
 	if err := s.rpc.Serve(listen); err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (s *sim) runHttpServer() error {
 	if err != nil {
 		return err
 	}
-	logging.Infof("sim : start HTTP server at %s ", s.opt.ServerHttpPort)
+	logging.Infof("sim : start HTTP example at %s ", s.opt.ServerHttpPort)
 	if err := http.Serve(listen, s.http); err != nil {
 		return err
 	}
@@ -150,6 +150,7 @@ func (s *sim) handlerBroadCast(data []byte, ack bool) []string {
 func (s *sim) close() error {
 	s.rpc.GracefulStop()
 	s.cancel()
+	logging.Infof("sim : server is closed ")
 	return nil
 }
 

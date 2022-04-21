@@ -23,9 +23,8 @@ const (
 	DefaultClientWriteBufferSize   = 1024
 	DefaultClientBufferSize        = 8
 	DefaultClientMessageType       = 1
-	DefaultClientProtocol          = 1
 
-	// ====================================== Options for only server-side =======================
+	// ====================================== Options for only example-side =======================
 
 	DefaultBucketSize         = 1 << 8 // 256
 	DefaultServerBucketNumber = 1 << 6 // 64
@@ -61,10 +60,8 @@ type Options struct {
 	//ClientMessageType  用户发送的数据类型
 	ClientMessageType MessageType
 
-	// ClientProtocol 压缩协议,这个后期需要舍弃
-	ClientProtocol Protocol
 
-	// ====================================== Options for only server-side =======================
+	// ====================================== Options for only example-side =======================
 
 	// BucketSize 每个bucket初始值，如果有预估可以减少map后期扩容带来性能开销
 	BucketSize int
@@ -117,8 +114,7 @@ func DefaultOption() *Options {
 		ClientWriteBufferSize:   DefaultClientWriteBufferSize,
 		ClientBufferSize:        DefaultClientBufferSize,
 		ClientMessageType:       DefaultClientMessageType,
-		ClientProtocol:          DefaultClientProtocol,
-		// server
+		// example
 		BucketSize:         DefaultBucketSize,
 		ServerBucketNumber: DefaultServerBucketNumber,
 		ServerRpcPort:      DefaultServerRpcPort,
@@ -193,11 +189,6 @@ func WithClientMessageType(ClientMessageType MessageType) OptionFunc {
 	}
 }
 
-func WithClientProtocol(ClientProtocol Protocol) OptionFunc {
-	return func(b *Options) {
-		b.ClientProtocol = ClientProtocol
-	}
-}
 
 func WithBucketSize(BucketSize int) OptionFunc {
 	return func(b *Options) {

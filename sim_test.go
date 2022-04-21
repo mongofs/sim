@@ -39,6 +39,18 @@ func (m MockValidate) ValidateSuccess(cli Client) {
 	return
 }
 
+type mockDiscovery struct {
+
+}
+
+func (m mockDiscovery) Register() {
+	logging.Infof("sim : start Discover.Register success")
+}
+
+func (m mockDiscovery) Deregister() {
+	logging.Infof("sim : start Discover.Deregister success")
+}
+
 func TestRun(t *testing.T) {
 	Convey("测试创建服务器", t, func() {
 		optionfunc := []OptionFunc{
@@ -46,6 +58,7 @@ func TestRun(t *testing.T) {
 			WithServerHttpPort(":8081"),
 			WithLoggerLevel(logging.DebugLevel),
 			WithPluginsWTI(),
+			WithDiscover(mockDiscovery{}),
 		}
 		Run(&MockValidate{}, &MockReceive{}, optionfunc...)
 	})

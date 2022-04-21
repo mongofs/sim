@@ -1,3 +1,4 @@
 ./Log
 go.mod
 go.sum
+cmd
