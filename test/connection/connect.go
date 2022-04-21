@@ -22,13 +22,13 @@ import (
 )
 
 var (
-	r       = rand.New(rand.NewSource(time.Now().Unix()))
+	r = rand.New(rand.NewSource(time.Now().Unix()))
 )
 
 func main() {
 	config := InitConfig()
 	RunServer(config)
-	time.Sleep(time.Duration(config.keepTime )* time.Second )
+	time.Sleep(time.Duration(config.keepTime) * time.Second)
 }
 
 // RandString 生成随机字符串做Token, 注意的是这里生成token的规则，
@@ -58,17 +58,21 @@ func RunServer(cof *config) {
 		if k%cof.concurrency == 0 {
 			time.Sleep(1 * time.Second)
 		}
-		go CreateMockClient(cof.host,"1.3", v)
+		go CreateMockClient(cof.host, v,cof.tagNum ,k )
 	}
 }
 
+
+
 // CreateMockClient 图形界面化也可以使用这个网站进行查看 http://www.baidu.com/conn?token=1080&version=v.10
 // 模拟连接，在此包内可
-func CreateMockClient(Host ,version, token string) error {
+func CreateMockClient(Host, token string, tagN ,id int ) error {
 	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial(fmt.Sprintf(host+"?token=%s&version=%s", token, version), nil)
-	if nil != err {
-		return err
+	url := fmt.Sprintf(Host+"?token=%s&tag=%s", token,createTags(tagN))
+	conn, _, err := dialer.Dial(url, nil)
+	if err != nil {
+		fmt.Printf("error occurs during runtime id : %v, url : %s ,err :%s\r\n",id ,url,err.Error())
+		return nil
 	}
 	defer conn.Close()
 	for {

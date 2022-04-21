@@ -18,6 +18,7 @@ import 	"github.com/spf13/pflag"
 var (
 	concurrency int  // 并发请求数量 ，比如 -c 100 ，代表每秒创建100个链接
 	number      int // 总的请求数量 ，比如 -n 10000,代表总共建立链接10000个
+	tagNum      int // 随机生成tag的数量
 	keepTime    int // 总的在线时长，比如 -k 100 ,代表在线时间为100秒，100秒后就会释放
 	host        string // 设置对应的Url ，比如 -h 127.0.0.1:8080,目前展示不能支持配置链接token，后续会加上
 )
@@ -26,8 +27,9 @@ var (
 func init() {
 	pflag.IntVarP(&concurrency, "concurrency", "c", 100, "并发请求数量 ，比如 -c 100 ，代表每秒创建100个链接")
 	pflag.IntVarP(&number, "number", "n", 1000, "总的请求数量 ，比如 -n 10000,代表总共建立链接10000个")
+	pflag.IntVarP(&tagNum, "tags", "t", 3, "总的请求数量 ，比如 -n 10000,代表总共建立链接10000个")
 	pflag.IntVarP(&keepTime, "keepTime", "k", 100, "总的在线时长，比如 -k 100s ,代表在线时间为100秒，100秒后就会释放")
-	pflag.StringVarP(&host, "host", "h", "10.0.0.98:9999", "设置对应的Url ，比如 -h 127.0.0.1:8080,目前展示不能支持配置链接token，后续会加上")
+	pflag.StringVarP(&host, "host", "h", "ws://10.0.0.98:8081/conn", "设置对应的Url ，比如 -h 127.0.0.1:8080,目前展示不能支持配置链接token，后续会加上")
 }
 
 type config struct {
@@ -35,6 +37,7 @@ type config struct {
 	number      int
 	keepTime    int
 	host        string
+	tagNum 		int
 }
 
 // InitConfig 实例化
@@ -44,5 +47,6 @@ func InitConfig()*config  {
 		number:      number,
 		keepTime:    keepTime,
 		host:        host,
+		tagNum: tagNum,
 	}
 }
