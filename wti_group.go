@@ -110,11 +110,11 @@ func (g *Group) BroadCast(content []byte) []string {
 	return g.broadcast(content)
 }
 
-func (g *Group) BroadCastWithOtherTag(content []byte, otherTags []string) ([]string, error) {
+func (g *Group) BroadCastWithOtherTag(content []byte, otherTags []string) []string {
 	if len(otherTags) == 0 {
-		return nil, errors.ErrCliISNil
+		return nil
 	}
-	return g.broadcastWithTag(content, otherTags), nil
+	return g.broadcastWithTag(content, otherTags)
 }
 
 // ------------------------------------------ private ------------------------------------------

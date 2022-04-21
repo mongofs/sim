@@ -47,7 +47,7 @@ func newSet() *set {
 // ======================================API =================================
 
 func (s *set) RegisterParallelFunc() []ParallelFunc {
-	return s.run()
+	return s.parallel()
 }
 
 func (s *set) Add(tag string, client Client) (*target, error) {
@@ -96,10 +96,6 @@ func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string, e
 
 // ====================================helper ==================================
 
-func (s *set) list(limit, page int) {
-
-}
-
 func (s *set) info(tag string) (*targetInfo, error) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
@@ -146,7 +142,7 @@ func (s *set) broadcastByTag(msg map[string][]byte) ([]string, error) {
 	return res, nil
 }
 
-func (s *set) run() (res []ParallelFunc) {
+func (s *set) parallel() (res []ParallelFunc) {
 	res = append(res, s.monitor, s.handleMonitor)
 	return
 }

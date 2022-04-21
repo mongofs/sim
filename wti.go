@@ -41,8 +41,6 @@ type BroadCaster interface {
 	BroadCastWithInnerJoinTag([]byte, []string)
 }
 
-// =================================== API ==============
-
 func StartWTIServer() []ParallelFunc {
 	return wti.RegisterParallelFunc()
 }

@@ -136,18 +136,12 @@ func TestGroup_BroadCastWithOtherTag(t *testing.T) {
 		g.Add(&MockClient{token: "token4", tag: map[string]string{"roomA": "1"}})
 		g.Add(&MockClient{token: "token5", tag: map[string]string{"roomB": "1", "roomC": "1"}})
 
-		fail, err := g.BroadCastWithOtherTag([]byte("hello old baby"), []string{"roomA"})
-		if err != nil {
-			t.Fatal(err)
-		}
+		fail := g.BroadCastWithOtherTag([]byte("hello old baby"), []string{"roomA"})
 		So(len(fail) == 1 && fail[0] == "token3", ShouldBeTrue)
 		// output :
 		// token token1 收到消息： hello old baby
 		// token token4 收到消息： hello old baby
-		fail, err = g.BroadCastWithOtherTag([]byte("hello old baby"), []string{"roomB", "roomC"})
-		if err != nil {
-			t.Fatal(err)
-		}
+		fail = g.BroadCastWithOtherTag([]byte("hello old baby"), []string{"roomB", "roomC"})
 		// output :
 		// token token5 收到消息： hello old baby
 	})
