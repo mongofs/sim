@@ -57,7 +57,7 @@ func handleOnline (cli im.BasicClient){
 }
 
 func handleWTITargetInfo (cli im.BasicClient) {
-	res ,err := cli.WTITargetInfo(context.Background(),&im.WTITargetInfoReq{Tag: "man"})
+	_ ,err := cli.WTITargetInfo(context.Background(),&im.WTITargetInfoReq{Tag: "man"})
 	if err !=nil {
 		logging.Error(err)
 	}
