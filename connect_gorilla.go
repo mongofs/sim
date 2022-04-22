@@ -164,7 +164,7 @@ func (c *gorilla) close(forRetry bool) {
 			c.closeChan <- *c.token
 		}
 		c.con.Close()
-		logging.Infof("sim : token %v 正常下线", &c.token)
+		logging.Infof("sim : token %v 正常下线", *c.token)
 	})
 }
 
