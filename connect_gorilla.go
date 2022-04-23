@@ -25,8 +25,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-
-
 type MessageType int
 
 const (
@@ -36,6 +34,8 @@ const (
 
 // 当前这个连接基于 github.com/gorilla/websocket
 type gorilla struct {
+	reader *http.Request
+	rw    sync.RWMutex
 	once  sync.Once
 	con   *websocket.Conn
 	token *string
@@ -64,11 +64,15 @@ type gorilla struct {
 	// 的时候尽量不要读取closeChan
 	closeChan   chan<- string
 	messageType MessageType // text /binary
+
+	// tags 这里是标签管理的地方
+	tags map[string]*target
 }
 
 func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.ResponseWriter, r *http.Request, handlerReceive Receive) (Connect, error) {
 	result := &gorilla{
 		once:          sync.Once{},
+		reader: r,
 		con:           nil,
 		token:         token,
 		buffer:        make(chan []byte, option.ClientBufferSize),
@@ -88,6 +92,12 @@ func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.
 func (c *gorilla) Token() string {
 	return *c.token
 }
+
+
+func (c *gorilla) Request() *http.Request {
+	return c.reader
+}
+
 
 func (c *gorilla) Send(data []byte) error {
 	if len(c.buffer)*10 > cap(c.buffer)*7 {
@@ -117,6 +127,44 @@ func (c *gorilla) ReFlushHeartBeatTime() {
 
 func (c *gorilla) GetLastHeartBeatTime() int64 {
 	return c.heartBeatTime
+}
+
+func (c *gorilla) HaveTag(tags []string) bool {
+	c.rw.RLock()
+	defer c.rw.RUnlock()
+	for _, tag := range tags {
+		if _, ok := c.tags[tag]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *gorilla) SetTag(tag string) error {
+	c.rw.Lock()
+	defer c.rw.Unlock()
+	tgAd, err := WTIAdd(tag, c)
+	if err != nil {
+		return err
+	}
+	if c.tags == nil {
+		c.tags = make(map[string]*target,3)
+	}
+	c.tags[tag] = tgAd
+	return nil
+}
+
+func (c *gorilla) DelTag(tag string) {
+	 c.clear(tag)
+}
+
+func (c *gorilla) RangeTag() (res []string) {
+	c.rw.RLock()
+	defer c.rw.RUnlock()
+	for k, _ := range c.tags {
+		res = append(res, k)
+	}
+	return res
 }
 
 func (c *gorilla) monitorSend() {
@@ -164,8 +212,27 @@ func (c *gorilla) close(forRetry bool) {
 			c.closeChan <- *c.token
 		}
 		c.con.Close()
+		c.clear()
 		logging.Infof("sim : token %v 正常下线", *c.token)
 	})
+}
+
+func (c *gorilla) clear(tag ... string) {
+	c.rw.Lock()
+	defer c.rw.Unlock()
+	if len(tag) == 0 {
+		for k,v := range c.tags {
+			v.Del([]string{c.Token()})
+			delete(c.tags,k)
+		}
+	}else{
+		for _,v := range tag {
+			if tar, ok := c.tags[v]; ok {
+				delete(c.tags, v)
+				tar.Del([]string{c.Token()})
+			}
+		}
+	}
 }
 
 func (c *gorilla) upgrade(w http.ResponseWriter, r *http.Request, readerSize, writeSize int) error {

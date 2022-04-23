@@ -43,6 +43,7 @@ type targetInfo struct {
 	createTime int64
 	status     int
 	numG       int
+	change     int //状态变更次数
 	GInfo      []map[string]string
 }
 
@@ -134,7 +135,7 @@ func (t *target) Shrinks() {
 }
 
 func (t *target) Status() targetFlag {
-	t.rw.RUnlock()
+	t.rw.RLock()
 	defer t.rw.RUnlock()
 	return t.flag
 }
@@ -147,9 +148,17 @@ func (t *target) Distribute() (res []int) {
 	return t.distribute()
 }
 
+func (t *target) Destroy (){
+	if t.num != 0 {
+		return
+	}
+	t.destroy()
+}
+
 // ======================================== helper =====================================
 
-func (t *target) info() (res *targetInfo) {
+func (t *target) info() *targetInfo {
+	var res = &targetInfo{}
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	res.name = t.name
@@ -164,7 +173,7 @@ func (t *target) info() (res *targetInfo) {
 		numG = append(numG, g.Info())
 		node = node.Next()
 	}
-	return
+	return res
 }
 
 func (t *target) add(cli Client) {
@@ -373,4 +382,12 @@ func (t *target) distribute() (res []int) {
 		node = node.Next()
 	}
 	return
+}
+
+func (t *target) destroy(){
+	t.createTime,t.num,t.limit,t.numG = 0,0,0,0
+	t.flag =0
+	t.li = nil
+	t.offset = nil
+	targetPool.Put(t)
 }

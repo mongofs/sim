@@ -15,7 +15,6 @@ package sim
 
 import (
 	"net/http"
-	"sync"
 )
 
 type Client interface {
@@ -43,34 +42,27 @@ type Client interface {
 	// SetMessageType 设置用户接收消息的格式
 	SetMessageType(messageType MessageType)
 
-	//============================================ Tag ===============================
 
-	// HaveTag 判断用户是否存在某个tag
+	// -----------------------tag --------------------
+
 	HaveTag(tags []string) bool
 
-	// SetTag 为用户添加tag
 	SetTag(tag string) error
 
-	// DelTag 删除用户的tag
 	DelTag(tag string)
 
-	// RangeTag 遍历所有tag
 	RangeTag() (res []string)
+
 }
 
 type Cli struct {
-	// protect Cli tag
-	rw sync.RWMutex
+
 	Connect
-	tags   map[string]*target
-	reader *http.Request
+
 }
 
 func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, token *string, option *Options) (Client, error) {
-	res := &Cli{
-		reader: r,
-	}
-
+	res := &Cli{}
 	conn, err := NewGorilla(token, closeSig, option, w, r, option.ServerReceive)
 	if err != nil {
 		return nil, err
@@ -79,46 +71,8 @@ func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, t
 	return res, nil
 }
 
-func (c *Cli) Request() *http.Request {
-	return c.reader
-}
 
-func (c *Cli) HaveTag(tags []string) bool {
-	c.rw.RLock()
-	defer c.rw.RUnlock()
-	for _, tag := range tags {
-		if _, ok := c.tags[tag]; !ok {
-			return false
-		}
-	}
-	return true
-}
 
-func (c *Cli) SetTag(tag string) error {
-	c.rw.Lock()
-	defer c.rw.Unlock()
-	tgAd, err := WTIAdd(tag, c)
-	if err != nil {
-		return err
-	}
-	c.tags[tag] = tgAd
-	return nil
-}
 
-func (c *Cli) DelTag(tag string) {
-	c.rw.Lock()
-	defer c.rw.Unlock()
-	if tar, ok := c.tags[tag]; ok {
-		delete(c.tags, tag)
-		tar.Del([]string{c.Token()})
-	}
-}
 
-func (c *Cli) RangeTag() (res []string) {
-	c.rw.RLock()
-	defer c.rw.RUnlock()
-	for k, _ := range c.tags {
-		res = append(res, k)
-	}
-	return res
-}
+

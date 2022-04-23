@@ -41,6 +41,7 @@ func newSet() *set {
 	return &set{
 		mp: map[string]*target{},
 		rw: &sync.RWMutex{},
+		limit: DefaultCapacity,
 	}
 }
 
@@ -82,8 +83,6 @@ func (s *set) List() []*targetInfo {
 	return s.list()
 }
 
-
-
 func (s *set) BroadCastByTarget(msg map[string][]byte) ([]string, error) {
 	if err := s.check(); err != nil {
 		return nil, err
@@ -102,11 +101,11 @@ func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string, e
 
 // ====================================helper ==================================
 
-func (s *set) list() []*targetInfo{
+func (s *set) list() []*targetInfo {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
-	var res [] *targetInfo
-	for _,v := range s.mp{
+	var res []*targetInfo
+	for _, v := range s.mp {
 		res = append(res, v.Info())
 	}
 	return res
@@ -164,9 +163,6 @@ func (s *set) parallel() (res []ParallelFunc) {
 }
 
 func (s *set) check() error {
-	if !s.flag {
-		return errors.ERRWTINotStartServer
-	}
 	return nil
 }
 
@@ -191,9 +187,12 @@ func (s *set) monitor() error {
 }
 
 func (s *set) handleMonitor() error {
-
+	var duration = 20 *time.Second 
+	t := time.NewTicker(duration)
 	for {
 		select {
+		case <-t.C: // clear掉没有用户，且创建时间超过10min 的组
+			s.clear()
 		case t := <-s.expansion:
 			t.Expansion()
 		case t := <-s.shrinks:
@@ -203,6 +202,18 @@ func (s *set) handleMonitor() error {
 			t.Balance()
 			escape := time.Since(since)
 			logging.Infof("sim/wti : rebalance 耗费时间：%v ，在线人数为： %v", escape, t.Num())
+		}
+	}
+}
+
+
+func (s *set)clear (){
+	s.rw.Lock()
+	defer s.rw.Unlock()
+	for k,v := range s.mp {
+		if v.num == 0 && time.Now().Unix() - v.createTime > 60*2  {
+				v.Destroy()
+				delete(s.mp,k)
 		}
 	}
 }
