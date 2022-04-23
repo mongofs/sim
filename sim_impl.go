@@ -15,9 +15,9 @@ package sim
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	im "sim/api/v1"
@@ -29,13 +29,112 @@ import (
 )
 
 type sim struct {
-	http *http.ServeMux
-	rpc  *grpc.Server
-	bs   []*bucket
-	ps   atomic.Int64
+	http *httpserver
+	rpc *grpc.Server
+	bs  []*bucket
+	ps  atomic.Int64
 
 	cancel func()
 	opt    *Options
+}
+
+func (s *sim) Ping(ctx context.Context, empty *im.Empty) (*im.Empty, error) {
+	return nil, nil
+}
+
+func (s *sim) Online(ctx context.Context, empty *im.Empty) (*im.OnlineReply, error) {
+	num := s.ps.Load()
+	req := &im.OnlineReply{Number: num}
+	return req, nil
+}
+
+func (s *sim) Broadcast(ctx context.Context, req *im.BroadcastReq) (*im.BroadcastReply, error) {
+	fail := s.handlerBroadCast(req.Data, false)
+	return &im.BroadcastReply{Fail: fail}, nil
+}
+
+func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp, error) {
+	var err error
+	fail := map[string]string{}
+	var success []string
+	for _, token := range req.Token {
+		bs := s.bucket(token)
+		err = bs.send(req.Data, token, false)
+		if err != nil {
+			fail[token] = err.Error()
+		} else {
+			success = append(success, token)
+		}
+	}
+
+	result := &im.SendMsgResp{
+		MsgID:   "",
+		Filed:   &im.Load{Token: fail},
+		Success: success,
+	}
+	return result, err
+}
+
+func (s *sim) WTITargetList(ctx context.Context, req *im.WTITargetListReq) (*im.WTITargetListInfoReply, error) {
+	res := WTIList()
+	var result []*im.Info
+	for _,v := range res {
+		result = append(result,  &im.Info{Info: map[string]string{
+			"tag" : v.name,
+			"online": strconv.Itoa(v.online),
+			"limit": strconv.Itoa(v.limit),
+			"createTime": strconv.Itoa(int(v.createTime)),
+			"status":strconv.Itoa(v.status),
+			"numG" : strconv.Itoa(v.numG),
+		}})
+	}
+	return &im.WTITargetListInfoReply{
+		Count: int32(len(result)),
+		Info:  result,
+	},nil
+}
+
+func (s *sim) WTITargetInfo(ctx context.Context, req *im.WTITargetInfoReq) (*im.WTITargetInfoReply, error) {
+	res, err := WTIInfo(req.Tag)
+	if err != nil {
+		return nil, err
+	}
+	var gInfos []*im.Info
+	for _, v := range res.GInfo {
+		gInfos = append(gInfos, &im.Info{Info: v})
+	}
+	result := &im.WTITargetInfoReply{
+		Tag:        res.name,
+		Online:     int32(res.online),
+		Limit:      int32(res.limit),
+		CreateTime: res.createTime,
+		Status:     int32(res.status),
+		NumG:       int32(res.numG),
+		GInfos:     gInfos,
+	}
+	return result, nil
+}
+
+func (s *sim) WTIBroadcastByTarget(ctx context.Context, req *im.WTIBroadcastReq) (*im.BroadcastReply, error) {
+	res, err := WTIBroadCastByTarget(req.Data)
+	if err != nil {
+		return nil, err
+	}
+	result := &im.BroadcastReply{Fail: res}
+	return result, nil
+}
+
+func (s *sim) WTIBroadCastWithInnerJoinTag(ctx context.Context, req *im.WtiBroadcastWithInnerJoinReq) (*im.BroadcastReply, error) {
+	res, err := WTIBroadCastWithInnerJoinTag(req.Data, req.Tags)
+	if err != nil {
+		return nil, err
+	}
+	resutl := &im.BroadcastReply{Fail: res}
+	return resutl, nil
+}
+
+func (s *sim) initHttp (){
+	s.http = newHttpServer(s.opt.RouterValidateKey,s.opt.RouterConnection,s.opt.ServerHttpPort,s.upgrade,s)
 }
 
 func (s *sim) bucket(token string) *bucket {
@@ -47,41 +146,16 @@ func (s *sim) Index(token string, size uint32) uint32 {
 	return cityhash.CityHash32([]byte(token), uint32(len(token))) % size
 }
 
-func (s *sim) connection(writer http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	defer func() {
-		escape := time.Since(now)
-		logging.Infof("sim : %s create %s  cost %v  url is %v ", r.RemoteAddr, r.Method, escape, r.URL)
-	}()
-	res := &Response{
-		w:      writer,
-		Data:   nil,
-		Status: 200,
-	}
-	if r.ParseForm() != nil {
-		res.Status = 400
-		res.Data = "connection is bad "
-		res.SendJson()
-		return
-	}
-
-	token := r.Form.Get(s.opt.RouterValidateKey)
-	if token == "" {
-		res.Status = 400
-		res.Data = "token validate error"
-		res.SendJson()
-	}
+func (s *sim) upgrade(writer http.ResponseWriter, r *http.Request,token string)error {
 	// validate token
 	bs := s.bucket(token)
 	cli, err := bs.createConn(writer, r, token)
 	if err != nil {
-		res.Status = 400
-		res.Data = err.Error()
-		return
+		return err
 	}
 	if err := s.opt.ServerValidate.Validate(token); err != nil {
 		s.opt.ServerValidate.ValidateFailed(err, cli)
-		return
+		return nil
 	} else {
 		s.opt.ServerValidate.ValidateSuccess(cli)
 	}
@@ -89,7 +163,9 @@ func (s *sim) connection(writer http.ResponseWriter, r *http.Request) {
 	if err := bs.Register(cli, token); err != nil {
 		cli.Send([]byte(err.Error()))
 		cli.Close(false)
+		return err
 	}
+	return nil
 }
 
 func (s *sim) handlerHealth(w http.ResponseWriter, r *http.Request) {
@@ -122,18 +198,6 @@ func (s *sim) runGrpcServer() error {
 	}
 	logging.Infof("sim : start GRPC example at %s ", s.opt.ServerRpcPort)
 	if err := s.rpc.Serve(listen); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *sim) runHttpServer() error {
-	listen, err := net.Listen("tcp", s.opt.ServerHttpPort)
-	if err != nil {
-		return err
-	}
-	logging.Infof("sim : start HTTP example at %s ", s.opt.ServerHttpPort)
-	if err := http.Serve(listen, s.http); err != nil {
 		return err
 	}
 	return nil
@@ -176,24 +240,11 @@ func initSim(opts *Options) *sim {
 	im.RegisterBasicServer(b.rpc, b)
 
 	// prepare http
-	b.http = http.NewServeMux()
-	b.http.HandleFunc(b.opt.RouterHealth, b.handlerHealth)
-	b.http.HandleFunc(b.opt.RouterConnection, b.connection)
+	b.initHttp()
+
 	logging.Infof("sim : INIT_ROUTER_CONNECTION  is %s ", b.opt.RouterConnection)
 	logging.Infof("sim : INIT_ROUTER_HEALTH  is %s ", b.opt.RouterHealth)
 	logging.Infof("sim : INIT_VALIDATE_KEY is %s", b.opt.RouterValidateKey)
 	return b
 }
 
-type Response struct {
-	w      http.ResponseWriter
-	Status int         `json:"status"`
-	Data   interface{} `json:"data"`
-}
-
-func (r *Response) SendJson() (int, error) {
-	resp, _ := json.Marshal(r)
-	r.w.Header().Set("Content-Type", "application/json")
-	r.w.WriteHeader(r.Status)
-	return r.w.Write(resp)
-}

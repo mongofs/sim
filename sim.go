@@ -14,12 +14,33 @@
 package sim
 
 import (
+	"context"
 	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
+	im "sim/api/v1"
 	"sim/pkg/logging"
 	"syscall"
 )
+
+//
+
+type API interface {
+
+	Ping(ctx context.Context, empty *im.Empty) (*im.Empty, error)
+	Online(ctx context.Context, empty *im.Empty) (*im.OnlineReply, error)
+	Broadcast(ctx context.Context, req *im.BroadcastReq) (*im.BroadcastReply, error)
+	SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp, error)
+
+	// --------------------------------------target  : should start target server
+
+	WTITargetList(ctx context.Context, req *im.WTITargetListReq) (*im.WTITargetListInfoReply, error)
+	WTITargetInfo(ctx context.Context, req *im.WTITargetInfoReq) (*im.WTITargetInfoReply, error)
+	WTIBroadcastByTarget(ctx context.Context, req *im.WTIBroadcastReq) (*im.BroadcastReply, error)
+	WTIBroadCastWithInnerJoinTag(ctx context.Context, req *im.WtiBroadcastWithInnerJoinReq) (*im.BroadcastReply, error)
+}
+
+
 
 // Discover 可以在服务启动停止的时候自动想注册中心进行注册和注销，这个实现是可选的，具体可
 // 查看option的参数，如果没有discover 就是一个单节点，也是可以启动。但是建议你在生产环境
@@ -55,7 +76,7 @@ func serverParallel(s *sim) <-chan error{
 		s.monitorOnline,
 		// 启用单独goroutine 进行运行
 		s.runGrpcServer,
-		s.runHttpServer,
+		s.http.Run(),
 	}
 	if s.opt.SupportPluginWTI {
 		wtiParaller := StartWTIServer()

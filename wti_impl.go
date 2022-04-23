@@ -78,6 +78,12 @@ func (s *set) Info(tag string) (*targetInfo, error) {
 	return s.info(tag)
 }
 
+func (s *set) List() []*targetInfo {
+	return s.list()
+}
+
+
+
 func (s *set) BroadCastByTarget(msg map[string][]byte) ([]string, error) {
 	if err := s.check(); err != nil {
 		return nil, err
@@ -95,6 +101,16 @@ func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string, e
 }
 
 // ====================================helper ==================================
+
+func (s *set) list() []*targetInfo{
+	s.rw.RLock()
+	defer s.rw.RUnlock()
+	var res [] *targetInfo
+	for _,v := range s.mp{
+		res = append(res, v.Info())
+	}
+	return res
+}
 
 func (s *set) info(tag string) (*targetInfo, error) {
 	s.rw.RLock()

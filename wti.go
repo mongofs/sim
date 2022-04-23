@@ -52,6 +52,10 @@ func WTIAdd(tag string, client Client) (*target, error) {
 	return wti.Add(tag, client)
 }
 
+func WTIList() []*targetInfo {
+	return wti.List()
+}
+
 func WTIInfo(tag string) (*targetInfo, error) {
 	if len(tag) == 0 {
 		return nil, nil
