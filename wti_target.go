@@ -32,6 +32,7 @@ type target struct {
 	flag          targetFlag //
 	capChangeTime time.Duration
 	li            *list.List
+	change        int   // 进行扩容缩容操作次数
 	limit         int   // max online user for group
 	createTime    int64 // create time
 }
@@ -44,7 +45,7 @@ type targetInfo struct {
 	status     int
 	numG       int
 	change     int //状态变更次数
-	GInfo      []map[string]string
+	GInfo      []*map[string]string
 }
 
 var targetPool = sync.Pool{New: func() interface{} {
@@ -72,7 +73,7 @@ func (t *target) Init(name string) *target {
 	elm := t.li.PushFront(g)
 	t.offset = elm
 	t.name = name
-	t.numG++
+	t.numG ++
 	return t
 }
 
@@ -127,11 +128,17 @@ func (t *target) BroadCastWithInnerJoinTag(data []byte, otherTag []string) (res 
 }
 
 func (t *target) Expansion() {
+	since := time.Now()
 	t.expansion()
+	escape := time.Since(since)
+	logging.Infof("sim :  target Expansion , spend time %v ,", escape)
 }
 
 func (t *target) Shrinks() {
+	since := time.Now()
 	t.shrinks()
+	escape := time.Since(since)
+	logging.Infof("sim :  target Shrinks , spend time %v ,", escape)
 }
 
 func (t *target) Status() targetFlag {
@@ -141,14 +148,18 @@ func (t *target) Status() targetFlag {
 }
 
 func (t *target) Balance() {
+	since := time.Now()
 	t.reBalance()
+	escape := time.Since(since)
+	logging.Infof("sim :  target Banlance , spend time %v ,", escape)
+
 }
 
 func (t *target) Distribute() (res []int) {
 	return t.distribute()
 }
 
-func (t *target) Destroy (){
+func (t *target) Destroy() {
 	if t.num != 0 {
 		return
 	}
@@ -164,6 +175,8 @@ func (t *target) info() *targetInfo {
 	res.name = t.name
 	res.limit = t.limit
 	res.online = t.num
+	res.numG = t.numG
+	res.change =t.change
 	res.createTime = t.createTime
 	res.status = int(t.flag)
 	var numG []*map[string]string
@@ -173,6 +186,7 @@ func (t *target) info() *targetInfo {
 		numG = append(numG, g.Info())
 		node = node.Next()
 	}
+	res.GInfo=numG
 	return res
 }
 
@@ -328,6 +342,7 @@ func (t *target) reBalance() {
 	var steals []Client
 	t.rw.Lock()
 	defer t.rw.Unlock()
+	t.change++
 	node := t.li.Front()
 	for node != nil {
 		g := node.Value.(*Group)
@@ -384,9 +399,9 @@ func (t *target) distribute() (res []int) {
 	return
 }
 
-func (t *target) destroy(){
-	t.createTime,t.num,t.limit,t.numG = 0,0,0,0
-	t.flag =0
+func (t *target) destroy() {
+	t.createTime, t.num, t.limit, t.numG = 0, 0, 0, 0
+	t.flag = 0
 	t.li = nil
 	t.offset = nil
 	targetPool.Put(t)

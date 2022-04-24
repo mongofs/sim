@@ -85,6 +85,7 @@ func (s *sim) WTITargetList(ctx context.Context, req *im.WTITargetListReq) (*im.
 			"limit": strconv.Itoa(v.limit),
 			"createTime": strconv.Itoa(int(v.createTime)),
 			"status":strconv.Itoa(v.status),
+			"change" : strconv.Itoa(v.change),
 			"numG" : strconv.Itoa(v.numG),
 		}})
 	}
@@ -101,7 +102,7 @@ func (s *sim) WTITargetInfo(ctx context.Context, req *im.WTITargetInfoReq) (*im.
 	}
 	var gInfos []*im.Info
 	for _, v := range res.GInfo {
-		gInfos = append(gInfos, &im.Info{Info: v})
+		gInfos = append(gInfos, &im.Info{Info:* v})
 	}
 	result := &im.WTITargetInfoReply{
 		Tag:        res.name,

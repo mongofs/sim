@@ -16,7 +16,6 @@ package sim
 import (
 	"math"
 	"sim/pkg/errors"
-	"sim/pkg/logging"
 	"sync"
 	"time"
 )
@@ -39,8 +38,8 @@ type set struct {
 
 func newSet() *set {
 	return &set{
-		mp: map[string]*target{},
-		rw: &sync.RWMutex{},
+		mp:    map[string]*target{},
+		rw:    &sync.RWMutex{},
 		limit: DefaultCapacity,
 	}
 }
@@ -187,7 +186,7 @@ func (s *set) monitor() error {
 }
 
 func (s *set) handleMonitor() error {
-	var duration = 20 *time.Second 
+	var duration = 20 * time.Second
 	t := time.NewTicker(duration)
 	for {
 		select {
@@ -198,22 +197,18 @@ func (s *set) handleMonitor() error {
 		case t := <-s.shrinks:
 			t.Shrinks()
 		case t := <-s.balance:
-			since := time.Now()
 			t.Balance()
-			escape := time.Since(since)
-			logging.Infof("sim/wti : rebalance 耗费时间：%v ，在线人数为： %v", escape, t.Num())
 		}
 	}
 }
 
-
-func (s *set)clear (){
+func (s *set) clear() {
 	s.rw.Lock()
 	defer s.rw.Unlock()
-	for k,v := range s.mp {
-		if v.num == 0 && time.Now().Unix() - v.createTime > 60*2  {
-				v.Destroy()
-				delete(s.mp,k)
+	for k, v := range s.mp {
+		if v.num == 0 && time.Now().Unix()-v.createTime > 60*2 {
+			v.Destroy()
+			delete(s.mp, k)
 		}
 	}
 }

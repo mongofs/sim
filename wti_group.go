@@ -53,6 +53,7 @@ func (g *Group) Info() *map[string]string {
 	g.rw.RLock()
 	defer g.rw.RUnlock()
 	res := &map[string]string{
+		"status":strconv.Itoa(int(g.flag)),
 		"online":      strconv.Itoa(g.num),
 		"load":        strconv.Itoa(g.load),
 		"create_time": strconv.Itoa(int(g.createTime)),
