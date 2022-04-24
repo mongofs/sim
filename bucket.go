@@ -184,6 +184,9 @@ func (h *bucket) monitor() {
 // 将本地变量通过通道传出来，但是目前这种设想会增加调用者心智负担，暂时在更新
 // 2.0 版本之前不考虑将心跳迁移出来
 func (h *bucket) keepAlive() {
+	if h.opts.ClientHeartBeatInterval == 0 {
+		return
+	}
 	for {
 		var cancelCli []Client
 		now := time.Now().Unix()
