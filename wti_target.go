@@ -402,7 +402,7 @@ func (t *target) distribute() (res []int) {
 func (t *target) destroy() {
 	t.createTime, t.num, t.limit, t.numG = 0, 0, 0, 0
 	t.flag = 0
-	t.li = nil
+	t.li = list.New()
 	t.offset = nil
 	targetPool.Put(t)
 }

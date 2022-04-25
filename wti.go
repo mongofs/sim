@@ -16,13 +16,13 @@ package sim
 type targetFlag int
 
 const (
-	TargetFlagNORMAL          = iota + 1 // normal
-	TargetFLAGShouldEXTENSION            // start extension
-	TargetFLAGEXTENSION                  // extension
-	TargetFLAGShouldSHRINKS              // start shrinks
-	TargetFLAGSHRINKS                    // shrinks
-	TargetFLAGShouldReBalance            // start reBalance
-	TargetFLAGREBALANCE                  // reBalance
+	TargetFlagNORMAL          = iota // normal
+	TargetFLAGShouldEXTENSION        // start extension
+	TargetFLAGEXTENSION              // extension
+	TargetFLAGShouldSHRINKS          // start shrinks
+	TargetFLAGSHRINKS                // shrinks
+	TargetFLAGShouldReBalance        // start reBalance
+	TargetFLAGREBALANCE              // reBalance
 )
 
 type Monitor interface {

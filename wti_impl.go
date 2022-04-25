@@ -38,9 +38,13 @@ type set struct {
 
 func newSet() *set {
 	return &set{
-		mp:    map[string]*target{},
-		rw:    &sync.RWMutex{},
-		limit: DefaultCapacity,
+		mp:        map[string]*target{},
+		rw:        &sync.RWMutex{},
+		limit:     DefaultCapacity,
+		watchTime: 20,
+		expansion: make(chan *target),
+		shrinks:   make(chan *target),
+		balance:   make(chan *target),
 	}
 }
 
@@ -167,9 +171,11 @@ func (s *set) check() error {
 
 func (s *set) monitor() error {
 	for {
+		time.Sleep(time.Duration(s.watchTime) * time.Second)
 		s.rw.RLock()
 		for _, r := range s.mp {
-			switch r.Status() {
+			st := r.Status()
+			switch st {
 			default:
 				continue
 			case TargetFLAGShouldEXTENSION:
@@ -181,7 +187,7 @@ func (s *set) monitor() error {
 			}
 		}
 		s.rw.RUnlock()
-		time.Sleep(time.Duration(s.watchTime) * time.Second)
+
 	}
 }
 
