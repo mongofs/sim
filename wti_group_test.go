@@ -146,3 +146,4 @@ func TestGroup_BroadCastWithOtherTag(t *testing.T) {
 		// token token5 收到消息： hello old baby
 	})
 }
+
