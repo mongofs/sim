@@ -29,20 +29,15 @@ const (
 type Client interface {
 	Send([]byte) error
 
+	// HaveTags 判断用户是否存在这批tag，这个函数是用于支持BroadManager的交集推送，如何判断交集中实际
+	// 上带来一定的定制化嫌疑，但是目前想到的最快的方法就是这样，可以支持On 的复杂度进行交集下推
+	HaveTags([]string) bool
 	// 在用户管理中，需要将用户的标识作为key值进行存储，原本打算使用链表进行存储的，但是发现还是存在部分需求
 	// 需要进行支持快速查找，比如快速找到组内是否存在某个用户，用户存在就将用户标识对应的内容进行替换，如果
 	// 不存在就进行新增。使用链表就不是很有必要，所以决定是用hash表进行存储
 	Identification() string
 }
 
-type Tagger interface {
-	HaveTag([]string) bool
-}
-
-type Group interface {
-	Client
-	Tagger
-}
 
 type ClientManager interface {
 	Add(cli Client)
@@ -72,7 +67,7 @@ type TargetManager interface {
 }
 
 // 广播器，用于进行广播，交集广播
-type BroadCast interface {
+type BroadCastManager interface {
 	// 常规广播，入参为字节数组，将直接写入用户的链接中，返回值为失败的用户的切片
 	// 主要报错实际在依赖注入的层面就可以记录，不需要这里进行操作
 	BroadCast(data []byte) []string

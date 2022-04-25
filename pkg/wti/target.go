@@ -176,7 +176,7 @@ func (t *target) info() *TargetInfo {
 	return res
 }
 
-func (t *target) add(cli group) {
+func (t *target) add(cli Client) {
 	t.rw.Lock()
 	defer t.rw.Unlock()
 	g := t.offset.Value.(*group)
@@ -194,8 +194,8 @@ func (t *target) del(token []string) (res []string, current int) {
 	defer t.rw.Unlock()
 	node := t.li.Front()
 	for node != nil {
-		gp := node.Value.(*Group)
-		_, result, cur := gp.Del(token)
+		gp := node.Value.(*group)
+		_, result, cur := gp.del(token)
 		current += cur
 		res = append(res, result...)
 		node = node.Next()
@@ -213,27 +213,7 @@ func (t *target) moveOffset() {
 	}
 }
 
-func (t *target) setFlag(flag targetFlag) {
-	flagName := ""
-	switch flag {
-	case TargetFlagNORMAL:
-		flagName = "TargetFlagNORMAL"
-	case TargetFLAGShouldEXTENSION:
-		flagName = "TargetFLAGShouldEXTENSION"
-	case TargetFLAGEXTENSION:
-		flagName = "TargetFLAGEXTENSION"
-	case TargetFLAGShouldSHRINKS:
-		flagName = "TargetFLAGShouldSHRINKS"
-	case TargetFLAGSHRINKS:
-		flagName = "TargetFLAGSHRINKS"
-	case TargetFLAGShouldReBalance:
-		flagName = "TargetFLAGShouldReBalance"
-	case TargetFLAGREBALANCE:
-		flagName = "TargetFLAGREBALANCE"
-
-	}
-	_ = flagName
-	//logging.Infof("sim/wti : change target level %v ,target name is %v", flagName, t.name)
+func (t *target) setFlag(flag TargetStatus) {
 	t.flag = flag
 }
 
@@ -242,22 +222,22 @@ func (t *target) expansion() {
 	defer t.rw.Unlock()
 	targetG := t.num/t.limit + 1
 	if t.numG >= targetG {
-		t.setFlag(TargetFlagNORMAL)
+		t.setFlag(TargetStatusNORMAL)
 		return
 	}
 	diff := targetG - t.numG
-	t.setFlag(TargetFLAGEXTENSION)
+	t.setFlag(TargetStatusEXTENSION)
 	for i := 0; i < diff; i++ {
-		newG := NewGroup(t.limit)
+		newG := getG(t.limit)
 		t.li.PushBack(newG)
 		t.numG += 1
 	}
-	t.setFlag(TargetFLAGShouldReBalance)
+	t.setFlag(TargetStatusShouldReBalance)
 }
 
 func (t *target) judgeExpansion() {
-	if t.num > t.limit*t.numG && t.flag == TargetFlagNORMAL {
-		t.flag = TargetFLAGShouldEXTENSION
+	if t.num > t.limit*t.numG && t.flag == TargetStatusNORMAL {
+		t.flag = TargetStatusEXTENSION
 	}
 }
 
@@ -270,11 +250,11 @@ func (t *target) shrinks() {
 	// 4.  谁来执行shrink : 应该由target 聚合层进行统一状态管理
 	t.rw.Lock()
 	t.rw.Unlock()
-	t.setFlag(TargetFLAGSHRINKS)
+	t.setFlag(TargetStatusSHRINKS)
 
 	targetG := (t.num*10)/(t.limit*6) + 1 // 100 / 25 = 4 , 1000 /125 =6
 	if t.numG <= targetG {
-		t.setFlag(TargetFlagNORMAL)
+		t.setFlag(TargetStatusNORMAL)
 		return
 	}
 
@@ -284,8 +264,8 @@ func (t *target) shrinks() {
 	var freeNode []*list.Element
 	node := t.li.Front()
 	for i := 0; i < diff; i++ {
-		ng := node.Value.(*Group)
-		res, err := ng.Free()
+		ng := node.Value.(*group)
+		res, err := ng.free()
 		if err != nil {
 			logging.Error(err)
 			break
@@ -305,14 +285,14 @@ func (t *target) shrinks() {
 	}
 
 	node1 := t.li.Front()
-	ng := node1.Value.(*Group)
-	ng.BatchAdd(free)
-	t.setFlag(TargetFLAGShouldReBalance)
+	ng := node1.Value.(*group)
+	ng.addMany(free)
+	t.setFlag(TargetStatusShouldReBalance)
 }
 
 func (t *target) judgeShrinks() {
-	if (t.num/t.numG)*10 < t.limit*3 && t.flag == TargetFlagNORMAL {
-		t.flag = TargetFLAGShouldSHRINKS
+	if (t.num/t.numG)*10 < t.limit*3 && t.flag == TargetStatusNORMAL {
+		t.flag = TargetStatusShouldSHRINKS
 	}
 	return
 }
@@ -324,33 +304,31 @@ func (t *target) reBalance() {
 	// 负载小于等于 10 的节点都属于 紧急节点
 	// 负载小于 0 的节点属于立刻节点
 	// 获取到所有节点的负载情况 ： 负载小于 0 的优先移除
-	var lowLoadG []*Group
+	var lowLoadG []*group
 	var steals []Client
 	t.rw.Lock()
 	defer t.rw.Unlock()
 	t.change++
 	node := t.li.Front()
 	for node != nil {
-		g := node.Value.(*Group)
-		if g.Num() > avg {
+		g := node.Value.(*group)
+		gnum := g.num
+		if gnum > avg {
 			// num >avg ,说明超载
-			steal := g.Num() - avg
-			st, err := g.Move(steal)
-			if err != nil {
-				return
-			}
+			steal := gnum - avg
+			st := g.move(steal)
 			steals = append(steals, st...)
 		} else {
 			//  进入这里说明当前节点load 偏低
-			diff := avg - g.Num()
+			diff := avg - gnum
 			if diff > 0 {
 				if len(steals) > diff {
-					g.BatchAdd(steals[:diff])
+					g.addMany(steals[:diff])
 					steals = steals[diff:]
 					node = node.Next()
 					continue
 				} else {
-					g.BatchAdd(steals)
+					g.addMany(steals)
 					steals = []Client{}
 					node = node.Next()
 					continue
@@ -363,12 +341,12 @@ func (t *target) reBalance() {
 	}
 
 	for _, g := range lowLoadG {
-		w := avg - g.Num()
+		w := avg - g.num
 		if w >= len(steals) {
-			g.BatchAdd(steals)
+			g.addMany(steals)
 			break
 		}
-		g.BatchAdd(steals[:w])
+		g.addMany(steals[:w])
 		steals = steals[w:]
 	}
 

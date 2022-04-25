@@ -32,7 +32,7 @@ type group struct {
 	rw             *sync.RWMutex
 	flag           gStatus
 	cap, num, load int
-	set            map[string]Group
+	set            map[string]Client
 	createTime     int64
 }
 
@@ -40,7 +40,7 @@ var groupPool = sync.Pool{
 	New: func() interface{} {
 		return &group{
 			rw:  &sync.RWMutex{},
-			set: make(map[string]Group, DefaultCapacity),
+			set: make(map[string]Client, DefaultCapacity),
 		}
 	},
 }
@@ -67,11 +67,12 @@ func (g *group) info() *map[string]string {
 	return res
 }
 
-func (g *group) free() ([]Group, error) {
+
+func (g *group) free() ([]Client, error) {
 	return g.move(g.num), nil
 }
 
-func (g *group) add(cli Group) bool {
+func (g *group) add(cli Client) bool {
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	if _, ok := g.set[cli.Identification()]; ok {
@@ -89,7 +90,7 @@ func (g *group) add(cli Group) bool {
 	return false
 }
 
-func (g *group) addMany(cliS []Group) {
+func (g *group) addMany(cliS []Client) {
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	for _, cli := range cliS {
@@ -119,13 +120,14 @@ func (g *group) del(tokens []string) (clear bool, success []string, current int)
 	return clear, success, g.num
 }
 
-func (g *group) move(num int) []Group {
+func (g *group) move(num int) []Client {
 	var (
-		counter int = 0
-		res     []Group
+		counter  = 0
+		res     []Client
 	)
 	g.rw.Lock()
 	defer g.rw.Unlock()
+	if num > g.num {num= g.num}
 	if num == g.num {
 		g.flag = gStatusClosed
 	}
@@ -160,7 +162,7 @@ func (g *group) broadcastWithTag(content []byte, tags []string) []string {
 	g.rw.RLock()
 	defer g.rw.RUnlock()
 	for _, v := range g.set {
-		if v.HaveTag(tags) {
+		if v.HaveTags(tags) {
 			err := v.Send(content)
 			if err != nil {
 				res = append(res, v.Identification())
