@@ -21,16 +21,14 @@ import (
 
 const DefaultCapacity = 128
 
-type gStatus int
 
-const (
-	gStatusNormal gStatus = iota + 1
-	gStatusClosed
-)
 
+// group 是一个组的概念，相同tag 的用户将放在一起，对外提供广播功能，减少寻址过程，增加分组广播功能
+// group 的调用者是是target，提供的所有功能也是面对target（标签）而设定的。group是target存储数据
+// 的基本单元，而最基本的实体就是Client对象，在group内部存储用户是使用哈希表，并发读写是依靠读写锁
+// 来进行保障
 type group struct {
 	rw             *sync.RWMutex
-	flag           gStatus
 	cap, num, load int
 	set            map[string]Client
 	createTime     int64
@@ -45,7 +43,8 @@ var groupPool = sync.Pool{
 	},
 }
 
-func getG(cap int) *group {
+// @ForTesting
+func GetG(cap int) *group {
 	if cap == 0 {
 		cap = DefaultCapacity
 	}
@@ -59,14 +58,12 @@ func (g *group) info() *map[string]string {
 	g.rw.RLock()
 	defer g.rw.RUnlock()
 	res := &map[string]string{
-		"status":      strconv.Itoa(int(g.flag)),
 		"online":      strconv.Itoa(g.num),
 		"load":        strconv.Itoa(g.load),
 		"create_time": strconv.Itoa(int(g.createTime)),
 	}
 	return res
 }
-
 
 func (g *group) free() ([]Client, error) {
 	return g.move(g.num), nil
@@ -83,7 +80,6 @@ func (g *group) add(cli Client) bool {
 		g.num++
 		g.calculateLoad()
 	}
-
 	if g.num > g.cap {
 		return false
 	}
@@ -91,6 +87,9 @@ func (g *group) add(cli Client) bool {
 }
 
 func (g *group) addMany(cliS []Client) {
+	if len(cliS) == 0 {
+		return
+	}
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	for _, cli := range cliS {
@@ -105,6 +104,9 @@ func (g *group) addMany(cliS []Client) {
 }
 
 func (g *group) del(tokens []string) (clear bool, success []string, current int) {
+	if len(tokens) == 0 {
+		return
+	}
 	g.rw.Lock()
 	defer g.rw.Unlock()
 	for _, token := range tokens {
@@ -122,14 +124,13 @@ func (g *group) del(tokens []string) (clear bool, success []string, current int)
 
 func (g *group) move(num int) []Client {
 	var (
-		counter  = 0
+		counter = 0
 		res     []Client
 	)
 	g.rw.Lock()
 	defer g.rw.Unlock()
-	if num > g.num {num= g.num}
-	if num == g.num {
-		g.flag = gStatusClosed
+	if num > g.num {
+		num = g.num
 	}
 	for k, v := range g.set {
 		if counter == num {
@@ -176,9 +177,9 @@ func (g *group) calculateLoad() {
 	g.load = g.cap - g.num // cap - len
 }
 
-func (g *group) destroy() error {
+// @ForTesting
+func (g *group) Destroy() error {
 	g.cap, g.num, g.cap, g.load, g.createTime = 0, 0, 0, 0, 0
-	g.flag = gStatusNormal
 	groupPool.Put(g)
 	return nil
 }

@@ -70,12 +70,11 @@ type TargetManager interface {
 type BroadCastManager interface {
 	// 常规广播，入参为字节数组，将直接写入用户的链接中，返回值为失败的用户的切片
 	// 主要报错实际在依赖注入的层面就可以记录，不需要这里进行操作
-	BroadCast(data []byte) []string
 
 	// 交集广播，和上面的不同的是，只有拥有多个标签的用户才能进行广播，比如说 man 、 18、178
 	// 这三个标签都满足了才能进行广播，我们只能选择广播器所依附的实体对象进行再筛选，一般依附的
 	// 实体对象我们选择最少数量原则
-	BroadCastWithInnerJoinTag(data []byte, otherTag []string) (res []string)
+	BroadCast(data []byte,tags[]string) []string
 }
 
 type TargetInfo struct {

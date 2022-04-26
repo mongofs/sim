@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-// target 存放的内容是 target -> groupA->GroupB
+// target 是相同的标签的管理单元，相同的target都会放置到相同的
 type target struct {
 	rw     sync.RWMutex
 	name   string
@@ -37,7 +37,6 @@ type target struct {
 	createTime    int64 // create time
 }
 
-
 var targetPool = sync.Pool{New: func() interface{} {
 	return &target{
 		rw: sync.RWMutex{},
@@ -49,23 +48,17 @@ func NewTarget(targetName string, limit int) (*target, error) {
 	if targetName == "" || limit == 0 {
 		return nil, errors.New("bad param of target")
 	}
-
 	tg := targetPool.Get().(*target)
 	tg.name = targetName
 	tg.limit = limit
 	tg.createTime = time.Now().Unix()
-	tg.Init(targetName)
+	g := GetG(tg.limit)
+	elm := tg.li.PushFront(g)
+	tg.offset = elm
+	tg.numG++
 	return tg, nil
 }
 
-func (t *target) Init(name string) *target {
-	g := getG(t.limit)
-	elm := t.li.PushFront(g)
-	t.offset = elm
-	t.name = name
-	t.numG++
-	return t
-}
 
 // ============================================= API =================================
 
@@ -93,28 +86,11 @@ func (t *target) Count() int {
 	return t.num
 }
 
-func (t *target) BroadCast(data []byte) []string {
-	t.rw.RLock()
-	defer t.rw.RUnlock()
-	node := t.li.Front()
-	var res []string
-	for node != nil {
-		g := node.Value.(*group)
-		res = append(res, g.broadcast(data)...)
-		node = node.Next()
+func (t *target) BroadCast(data []byte,tags []string) []string {
+	if len(data) == 0{
+		return nil
 	}
-	return res
-}
-
-func (t *target) BroadCastWithInnerJoinTag(data []byte, otherTag []string) (res []string) {
-	t.rw.RLock()
-	defer t.rw.RUnlock()
-	node := t.li.Front()
-	for node != nil {
-		res = append(res, node.Value.(*Group).BroadCastWithOtherTag(data, otherTag)...)
-		node = node.Next()
-	}
-	return
+	return t.broadcast(data,tags...)
 }
 
 func (t *target) Expansion() {
@@ -152,7 +128,26 @@ func (t *target) Destroy() {
 	t.destroy()
 }
 
-// ======================================== helper =====================================
+func (t *target) broadcast (data []byte,tags ...string)[]string{
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+	node := t.li.Front()
+	var res []string
+
+	if len(tags)== 0 {
+		for node != nil {
+			g := node.Value.(*group)
+			res = append(res, g.broadcast(data)...)
+			node = node.Next()
+		}
+	}else{
+		for node != nil {
+			res = append(res, node.Value.(*group).broadcastWithTag(data, tags)...)
+			node = node.Next()
+		}
+	}
+	return  res
+}
 
 func (t *target) info() *TargetInfo {
 	var res = &TargetInfo{}
@@ -228,7 +223,7 @@ func (t *target) expansion() {
 	diff := targetG - t.numG
 	t.setFlag(TargetStatusEXTENSION)
 	for i := 0; i < diff; i++ {
-		newG := getG(t.limit)
+		newG := GetG(t.limit)
 		t.li.PushBack(newG)
 		t.numG += 1
 	}

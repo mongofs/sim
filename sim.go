@@ -130,7 +130,8 @@ func Run(validate Validate, receive Receive, opts ...OptionFunc) (err error) {
 	select {
 	case err := <- ParallelChannel:
 		logging.Error(err)
-	case <- sigs:
+	case sig:= <- sigs:
+		logging.Infof("sim : close signal : %v",sig)
 		break
 	}
 	return
