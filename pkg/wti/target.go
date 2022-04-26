@@ -23,11 +23,13 @@ import (
 
 // target 是相同的标签的管理单元，相同的target都会放置到相同的
 type target struct {
-	rw     sync.RWMutex
-	name   string
-	num    int           // online user
-	numG   int           // online Group
-	offset *list.Element // the next user group offset
+	rw      sync.RWMutex
+	name    string
+	num     int           // online user
+	numG    int           // online Group
+	targetG int           // should be numG
+	maxGOnlineDiff int  	// 可容忍的最大差值
+	offset  *list.Element // the next user group offset
 
 	flag          TargetStatus //
 	capChangeTime time.Duration
@@ -59,7 +61,6 @@ func NewTarget(targetName string, limit int) (*target, error) {
 	return tg, nil
 }
 
-
 // ============================================= API =================================
 
 func (t *target) Info() *TargetInfo {
@@ -86,11 +87,11 @@ func (t *target) Count() int {
 	return t.num
 }
 
-func (t *target) BroadCast(data []byte,tags []string) []string {
-	if len(data) == 0{
+func (t *target) BroadCast(data []byte, tags []string) []string {
+	if len(data) == 0 {
 		return nil
 	}
-	return t.broadcast(data,tags...)
+	return t.broadcast(data, tags...)
 }
 
 func (t *target) Expansion() {
@@ -127,25 +128,25 @@ func (t *target) Destroy() {
 	t.destroy()
 }
 
-func (t *target) broadcast (data []byte,tags ...string)[]string{
+func (t *target) broadcast(data []byte, tags ...string) []string {
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	node := t.li.Front()
 	var res []string
 
-	if len(tags)== 0 {
+	if len(tags) == 0 {
 		for node != nil {
 			g := node.Value.(*group)
 			res = append(res, g.broadcast(data)...)
 			node = node.Next()
 		}
-	}else{
+	} else {
 		for node != nil {
 			res = append(res, node.Value.(*group).broadcastWithTag(data, tags)...)
 			node = node.Next()
 		}
 	}
-	return  res
+	return res
 }
 
 func (t *target) info() *TargetInfo {
@@ -179,7 +180,6 @@ func (t *target) add(cli Client) {
 	}
 	t.num++
 	t.moveOffset()
-	t.judgeExpansion()
 	return
 }
 
@@ -195,7 +195,6 @@ func (t *target) del(token []string) (res []string, current int) {
 		node = node.Next()
 	}
 	t.num = current
-	t.judgeShrinks()
 	return
 }
 
@@ -207,32 +206,62 @@ func (t *target) moveOffset() {
 	}
 }
 
-func (t *target) setFlag(flag TargetStatus) {
-	t.flag = flag
-}
 
 func (t *target) expansion() {
 	t.rw.Lock()
 	defer t.rw.Unlock()
-	targetG := t.num/t.limit + 1
-	if t.numG >= targetG {
-		t.setFlag(TargetStatusNORMAL)
-		return
-	}
-	diff := targetG - t.numG
-	t.setFlag(TargetStatusEXTENSION)
+	t.flag = TargetStatusEXTENSION
+	diff := t.targetG - t.numG
 	for i := 0; i < diff; i++ {
 		newG := GetG(t.limit)
 		t.li.PushBack(newG)
 		t.numG += 1
 	}
-	t.setFlag(TargetStatusShouldReBalance)
+	t.flag = TargetStatusNORMAL
 }
 
-func (t *target) judgeExpansion() {
-	if t.num > t.limit*t.numG && t.flag == TargetStatusNORMAL {
-		t.flag = TargetStatusEXTENSION
+func (t *target) fixStatus() {
+	t.rw.Lock()
+	defer t.rw.Unlock()
+	// 修正targetG
+	targetG := t.num/t.limit + 1
+	if targetG == t.targetG {
+		return
 	}
+	t.targetG = targetG
+	if targetG > t.numG {
+		// 目标个数大于当前个数，应该扩容
+		t.flag = TargetStatusShouldEXTENSION
+		return
+	}
+	if targetG < t.numG {
+		// 目标个数小于当前的个数 ，应该缩容
+		t.flag = TargetStatusShouldSHRINKS
+		return
+	}
+	if t.num == 0 && time.Now().Unix()- t.createTime > 120  {
+		t.flag = TargetStatusShouldBeDestroy
+		return
+	}
+	node := t.li.Front()
+	var n []int
+	for node != nil {
+		n = append(n, node.Value.(*group).num)
+	}
+
+	var min,max = 10000,0
+	for _,v := range n {
+		if v < min {
+			min = v
+		}
+		if v > max {
+			max = v
+		}
+	}
+	if max -min >= t.maxGOnlineDiff {
+		t.flag = TargetStatusShouldReBalance
+	}
+	return
 }
 
 func (t *target) shrinks() {
@@ -244,16 +273,12 @@ func (t *target) shrinks() {
 	// 4.  谁来执行shrink : 应该由target 聚合层进行统一状态管理
 	t.rw.Lock()
 	t.rw.Unlock()
-	t.setFlag(TargetStatusSHRINKS)
 
-	targetG := (t.num*10)/(t.limit*6) + 1 // 100 / 25 = 4 , 1000 /125 =6
-	if t.numG <= targetG {
-		t.setFlag(TargetStatusNORMAL)
+	diff := t.numG - t.targetG
+	if diff <= 0 {
 		return
 	}
-
-	diff := t.numG - targetG
-
+	t.flag =TargetStatusSHRINKS
 	var free []Client
 	var freeNode []*list.Element
 	node := t.li.Front()
@@ -281,14 +306,7 @@ func (t *target) shrinks() {
 	node1 := t.li.Front()
 	ng := node1.Value.(*group)
 	ng.addMany(free)
-	t.setFlag(TargetStatusShouldReBalance)
-}
-
-func (t *target) judgeShrinks() {
-	if (t.num/t.numG)*10 < t.limit*3 && t.flag == TargetStatusNORMAL {
-		t.flag = TargetStatusShouldSHRINKS
-	}
-	return
+	t.flag = TargetStatusNORMAL
 }
 
 func (t *target) reBalance() {
