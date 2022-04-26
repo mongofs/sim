@@ -73,7 +73,7 @@ func (t *target) Init(name string) *target {
 	elm := t.li.PushFront(g)
 	t.offset = elm
 	t.name = name
-	t.numG ++
+	t.numG++
 	return t
 }
 
@@ -151,8 +151,7 @@ func (t *target) Balance() {
 	since := time.Now()
 	t.reBalance()
 	escape := time.Since(since)
-	logging.Infof("sim :  target Banlance , spend time %v ,", escape)
-
+	logging.Infof("sim :  target %v Balance ,online user  %v ,countG  %v , spend time %v ,", t.name, t.num, t.numG, escape)
 }
 
 func (t *target) Distribute() (res []int) {
@@ -176,7 +175,7 @@ func (t *target) info() *targetInfo {
 	res.limit = t.limit
 	res.online = t.num
 	res.numG = t.numG
-	res.change =t.change
+	res.change = t.change
 	res.createTime = t.createTime
 	res.status = int(t.flag)
 	var numG []*map[string]string
@@ -186,7 +185,7 @@ func (t *target) info() *targetInfo {
 		numG = append(numG, g.Info())
 		node = node.Next()
 	}
-	res.GInfo=numG
+	res.GInfo = numG
 	return res
 }
 
@@ -199,7 +198,6 @@ func (t *target) add(cli Client) {
 	}
 	t.num++
 	t.moveOffset()
-	t.judgeExpansion()
 	return
 }
 
@@ -215,7 +213,6 @@ func (t *target) del(token []string) (res []string, current int) {
 		node = node.Next()
 	}
 	t.num = current
-	t.judgeShrinks()
 	return
 }
 
@@ -256,23 +253,16 @@ func (t *target) expansion() {
 	defer t.rw.Unlock()
 	targetG := t.num/t.limit + 1
 	if t.numG >= targetG {
-		t.setFlag(TargetFlagNORMAL)
 		return
 	}
-	diff := targetG - t.numG
 	t.setFlag(TargetFLAGEXTENSION)
+	diff := targetG - t.numG
 	for i := 0; i < diff; i++ {
 		newG := NewGroup(t.limit)
 		t.li.PushBack(newG)
 		t.numG += 1
 	}
-	t.setFlag(TargetFLAGShouldReBalance)
-}
-
-func (t *target) judgeExpansion() {
-	if t.num > t.limit*t.numG && t.flag == TargetFlagNORMAL {
-		t.flag = TargetFLAGShouldEXTENSION
-	}
+	t.setFlag(TargetFlagNORMAL)
 }
 
 func (t *target) shrinks() {
@@ -284,16 +274,12 @@ func (t *target) shrinks() {
 	// 4.  谁来执行shrink : 应该由target 聚合层进行统一状态管理
 	t.rw.Lock()
 	t.rw.Unlock()
-	t.setFlag(TargetFLAGSHRINKS)
-
 	targetG := (t.num*10)/(t.limit*6) + 1 // 100 / 25 = 4 , 1000 /125 =6
 	if t.numG <= targetG {
-		t.setFlag(TargetFlagNORMAL)
 		return
 	}
-
+	t.setFlag(TargetFLAGSHRINKS)
 	diff := t.numG - targetG
-
 	var free []Client
 	var freeNode []*list.Element
 	node := t.li.Front()
@@ -321,14 +307,7 @@ func (t *target) shrinks() {
 	node1 := t.li.Front()
 	ng := node1.Value.(*Group)
 	ng.BatchAdd(free)
-	t.setFlag(TargetFLAGShouldReBalance)
-}
-
-func (t *target) judgeShrinks() {
-	if (t.num/t.numG)*10 < t.limit*3 && t.flag == TargetFlagNORMAL {
-		t.flag = TargetFLAGShouldSHRINKS
-	}
-	return
+	t.setFlag(TargetFlagNORMAL)
 }
 
 func (t *target) reBalance() {
@@ -405,4 +384,10 @@ func (t *target) destroy() {
 	t.li = list.New()
 	t.offset = nil
 	targetPool.Put(t)
+}
+
+func (t *target) fixStatus(){
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+
 }

@@ -111,8 +111,7 @@ func (t *target) Balance() {
 	since := time.Now()
 	t.reBalance()
 	escape := time.Since(since)
-	logging.Infof("sim :  target Banlance , spend time %v ,", escape)
-
+	logging.Infof("sim :  target %v Balance ,online user  %v ,countG  %v , spend time %v ,", t.name, t.num, t.numG, escape)
 }
 
 func (t *target) Status() TargetStatus {

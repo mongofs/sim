@@ -18,6 +18,7 @@ import (
 	"errors"
 	"net/http"
 	im "sim/api/v1"
+	"sim/pkg/logging"
 )
 
 // 这里原则是初始化路由
@@ -26,82 +27,88 @@ func (h *httpserver) initRouter() {
 	h.http.HandleFunc(h.validateRouter, h.connection)
 
 	h.http.HandleFunc("/ping", func(writer http.ResponseWriter, request *http.Request) {
-		if err := request.ParseForm() ;err !=nil {
-			handleReturn(writer, nil, err)
+		remark := "/ping"
+		if err := request.ParseForm(); err != nil {
+			handleReturn(writer, nil, err, remark)
 			return
 		}
 		res, err := h.handler.Ping(context.Background(), &im.Empty{})
-		handleReturn(writer, res, err)
+		handleReturn(writer, res, err, remark)
 	})
 
 	h.http.HandleFunc("/online", func(writer http.ResponseWriter, request *http.Request) {
-		if err := request.ParseForm() ;err !=nil {
-			handleReturn(writer, nil, err)
+		remark := "/online"
+		if err := request.ParseForm(); err != nil {
+			handleReturn(writer, nil, err, remark)
 			return
 		}
 		res, err := h.handler.Online(context.Background(), &im.Empty{})
-		handleReturn(writer, res, err)
+		handleReturn(writer, res, err, remark)
 	})
 
 	h.http.HandleFunc("/broadcast", func(writer http.ResponseWriter, request *http.Request) {
-		if err := request.ParseForm() ;err !=nil {
-			handleReturn(writer, nil, err)
+		remark := "/broadcast"
+		if err := request.ParseForm(); err != nil {
+			handleReturn(writer, nil, err, remark)
 			return
 		}
 		content := request.Form.Get("content")
 		if content == "" {
-			handleReturn(writer, nil, errors.New("param should have 'content' "))
+			handleReturn(writer, nil, errors.New("param should have 'content' "), remark)
 			return
 		}
 		res, err := h.handler.Broadcast(context.Background(), &im.BroadcastReq{Data: []byte(content)})
-		handleReturn(writer, res, err)
+		handleReturn(writer, res, err, remark)
 	})
 
 	h.http.HandleFunc("/wti/info", func(writer http.ResponseWriter, request *http.Request) {
-		if err := request.ParseForm() ;err !=nil {
-			handleReturn(writer, nil, err)
+		remark := "/wti/info"
+		if err := request.ParseForm(); err != nil {
+			handleReturn(writer, nil, err, remark)
 			return
 		}
 		tag := request.Form.Get("tag")
 		if tag == "" {
-			handleReturn(writer, nil, errors.New("param should have 'tag' "))
+			handleReturn(writer, nil, errors.New("param should have 'tag' "), remark)
 			return
 		}
 		res, err := h.handler.WTITargetInfo(context.Background(), &im.WTITargetInfoReq{Tag: tag})
-		handleReturn(writer, res, err)
+		handleReturn(writer, res, err, remark)
 	})
 
 	h.http.HandleFunc("/wti/list", func(writer http.ResponseWriter, request *http.Request) {
-		if err := request.ParseForm() ;err !=nil {
-			handleReturn(writer, nil, err)
+		remark := "/wti/list"
+		if err := request.ParseForm(); err != nil {
+			handleReturn(writer, nil, err, remark)
 			return
 		}
 		res, err := h.handler.WTITargetList(context.Background(), &im.WTITargetListReq{})
-		handleReturn(writer, res, err)
+		handleReturn(writer, res, err, remark)
 	})
 
 	h.http.HandleFunc("/wti/broadcast", func(writer http.ResponseWriter, request *http.Request) {
-		if err := request.ParseForm() ;err !=nil {
-			handleReturn(writer, nil, err)
+		remark := "/wti/broadcast"
+		if err := request.ParseForm(); err != nil {
+			handleReturn(writer, nil, err, remark)
 			return
 		}
 		content := request.Form.Get("content")
 		tag := request.Form.Get("tag")
 		if tag == "" || content == "" {
-			handleReturn(writer, nil, errors.New("param should have 'tag && content' "))
+			handleReturn(writer, nil, errors.New("param should have 'tag && content' "), remark)
 			return
 		}
 		res, err := h.handler.WTIBroadcastByTarget(context.Background(),
 			&im.WTIBroadcastReq{Data: map[string][]byte{
 				tag: []byte(content),
 			}})
-		handleReturn(writer, res, err)
+		handleReturn(writer, res, err, remark)
 	})
 
 }
 
 // todo  handle  http error
-func handleReturn(w http.ResponseWriter, returnData interface{}, err error) {
+func handleReturn(w http.ResponseWriter, returnData interface{}, err error, remark string) {
 	res := Response{
 		w:      w,
 		Desc:   "bad return ",
@@ -110,9 +117,10 @@ func handleReturn(w http.ResponseWriter, returnData interface{}, err error) {
 	if err == nil {
 		res.Desc = "ok  "
 		res.Data = returnData
-		res.SendJson()
-		return
+	} else {
+		res.Data = err.Error()
 	}
-	res.Data = err.Error()
+
+	logging.Infof("sim : http request , HTTPStatus is %v ,router : %v ", res.Status, remark)
 	res.SendJson()
 }
