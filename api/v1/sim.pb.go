@@ -1350,7 +1350,7 @@ type BasicClient interface {
 	Online(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OnlineReply, error)
 	SendMsg(ctx context.Context, in *SendMsgReq, opts ...grpc.CallOption) (*SendMsgResp, error)
 	Broadcast(ctx context.Context, in *BroadcastReq, opts ...grpc.CallOption) (*BroadcastReply, error)
-	// wti example
+	// target example
 	WTITargetList(ctx context.Context, in *WTITargetListReq, opts ...grpc.CallOption) (*WTITargetListInfoReply, error)
 	WTITargetInfo(ctx context.Context, in *WTITargetInfoReq, opts ...grpc.CallOption) (*WTITargetInfoReply, error)
 	WTIBroadcastByTarget(ctx context.Context, in *WTIBroadcastReq, opts ...grpc.CallOption) (*BroadcastReply, error)
@@ -1444,7 +1444,7 @@ type BasicServer interface {
 	Online(context.Context, *Empty) (*OnlineReply, error)
 	SendMsg(context.Context, *SendMsgReq) (*SendMsgResp, error)
 	Broadcast(context.Context, *BroadcastReq) (*BroadcastReply, error)
-	// wti example
+	// target example
 	WTITargetList(context.Context, *WTITargetListReq) (*WTITargetListInfoReply, error)
 	WTITargetInfo(context.Context, *WTITargetInfoReq) (*WTITargetInfoReply, error)
 	WTIBroadcastByTarget(context.Context, *WTIBroadcastReq) (*BroadcastReply, error)

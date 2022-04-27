@@ -33,8 +33,8 @@ type Client interface {
 	// GetLastHeartBeatTime 获取用户的最后一次心跳
 	GetLastHeartBeatTime() int64
 
-	// Token 获取用户的token
-	Token() string
+	// Identification 获取用户的token
+	Identification() string
 
 	// Request 获取到用户的请求的链接
 	Request() *http.Request
@@ -45,7 +45,7 @@ type Client interface {
 
 	// -----------------------tag --------------------
 
-	HaveTag(tags []string) bool
+	HaveTags(tags []string) bool
 
 	SetTag(tag string) error
 
@@ -55,10 +55,10 @@ type Client interface {
 
 }
 
+
+
 type Cli struct {
-
 	Connect
-
 }
 
 func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, token *string, option *Options) (Client, error) {

@@ -21,7 +21,7 @@ import "net/http"
 //  切换底层支持的话会重新发版，也考虑通过参数控制让用户自行选择实现
 
 type Connect interface {
-	Token() string
+	Identification() string
 
 	Request() *http.Request
 
@@ -37,7 +37,7 @@ type Connect interface {
 
 	// -----------------------tag --------------------
 
-	HaveTag(tags []string) bool
+	HaveTags(tags []string) bool
 
 	SetTag(tag string) error
 

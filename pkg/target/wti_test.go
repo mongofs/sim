@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package sim
+package target
 
 import (
 	"fmt"

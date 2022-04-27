@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"net/http"
+	"sim/pkg/target"
 	"sync"
 	"time"
 
@@ -66,7 +67,7 @@ type gorilla struct {
 	messageType MessageType // text /binary
 
 	// tags 这里是标签管理的地方
-	tags map[string]*target
+	tags map[string]target.ClientManager
 }
 
 func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.ResponseWriter, r *http.Request, handlerReceive Receive) (Connect, error) {
@@ -89,7 +90,7 @@ func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.
 	return result, nil
 }
 
-func (c *gorilla) Token() string {
+func (c *gorilla) Identification() string {
 	return *c.token
 }
 
@@ -129,7 +130,7 @@ func (c *gorilla) GetLastHeartBeatTime() int64 {
 	return c.heartBeatTime
 }
 
-func (c *gorilla) HaveTag(tags []string) bool {
+func (c *gorilla) HaveTags(tags []string) bool {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	for _, tag := range tags {
@@ -148,7 +149,7 @@ func (c *gorilla) SetTag(tag string) error {
 		return err
 	}
 	if c.tags == nil {
-		c.tags = make(map[string]*target,3)
+		c.tags = make(map[string]target.ClientManager,3)
 	}
 	c.tags[tag] = tgAd
 	return nil
@@ -222,14 +223,14 @@ func (c *gorilla) clear(tag ... string) {
 	defer c.rw.Unlock()
 	if len(tag) == 0 {
 		for k,v := range c.tags {
-			v.Del([]string{c.Token()})
+			v.Del([]string{c.Identification()})
 			delete(c.tags,k)
 		}
 	}else{
 		for _,v := range tag {
 			if tar, ok := c.tags[v]; ok {
 				delete(c.tags, v)
-				tar.Del([]string{c.Token()})
+				tar.Del([]string{c.Identification()})
 			}
 		}
 	}

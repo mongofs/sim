@@ -16,56 +16,56 @@ package sim
 import (
 	"math"
 	"sim/pkg/errors"
+	"sim/pkg/target"
 	"sync"
 	"time"
 )
+
+var DefaultCapacity = 128
 
 var wti = newSet()
 
 type set struct {
 	// mp tagName =>
-	mp   map[string]*target // wti => []string
-	sort []*target
+	mp   map[string]WTIManager // wti => []string
+	sort []WTIManager
 	rw   *sync.RWMutex
 
-	flag      bool
-	limit     int
-	watchTime int
-	expansion chan *target
-	shrinks   chan *target
-	balance   chan *target
+	flag             bool
+	limit, watchTime int
+	expansion, shrinks, balance, destroy chan WTIManager
 }
 
 func newSet() *set {
 	return &set{
-		mp:        map[string]*target{},
+		mp:        map[string]WTIManager{},
 		rw:        &sync.RWMutex{},
 		limit:     DefaultCapacity,
 		watchTime: 20,
-		expansion: make(chan *target),
-		shrinks:   make(chan *target),
-		balance:   make(chan *target),
+		expansion: make(chan WTIManager),
+		shrinks:   make(chan WTIManager),
+		balance:   make(chan WTIManager),
+		destroy:   make(chan WTIManager),
 	}
 }
 
-// ======================================API =================================
-
-func (s *set) RegisterParallelFunc() []ParallelFunc {
+func (s *set) run() []ParallelFunc {
 	return s.parallel()
 }
 
-func (s *set) Add(tag string, client Client) (*target, error) {
+// Add 添加用户到某个target 上去，此时用户需要在用户单元保存target内容
+func (s *set) add(tag string, client Client) (target.ClientManager, error) {
 	if err := s.check(); err != nil {
 		return nil, err
 	}
 	s.rw.Lock()
 	defer s.rw.Unlock()
-	var res *target
-	if target, ok := s.mp[tag]; ok {
-		res = target
-		target.Add(client)
+	var res WTIManager
+	if tg, ok := s.mp[tag]; ok {
+		res = tg
+		tg.Add(client)
 	} else {
-		ctag, err := NewTarget(tag, s.limit)
+		ctag, err := target.NewTarget(tag, s.limit)
 		if err != nil {
 			return nil, err
 		}
@@ -75,46 +75,17 @@ func (s *set) Add(tag string, client Client) (*target, error) {
 	return res, nil
 }
 
-func (s *set) Info(tag string) (*targetInfo, error) {
-	if err := s.check(); err != nil {
-		return nil, err
-	}
-	return s.info(tag)
-}
-
-func (s *set) List() []*targetInfo {
-	return s.list()
-}
-
-func (s *set) BroadCastByTarget(msg map[string][]byte) ([]string, error) {
-	if err := s.check(); err != nil {
-		return nil, err
-	}
-	return s.broadcastByTag(msg)
-}
-
-func (s *set) BroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string, error) {
-	if err := s.check(); err != nil {
-		return nil, err
-	}
-
-	res := s.broadcast(cont, tags...)
-	return res, nil
-}
-
-// ====================================helper ==================================
-
-func (s *set) list() []*targetInfo {
+func (s *set) list() []*target.TargetInfo {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
-	var res []*targetInfo
+	var res []*target.TargetInfo
 	for _, v := range s.mp {
 		res = append(res, v.Info())
 	}
 	return res
 }
 
-func (s *set) info(tag string) (*targetInfo, error) {
+func (s *set) info(tag string) (*target.TargetInfo, error) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
 	if v, ok := s.mp[tag]; ok {
@@ -128,20 +99,19 @@ func (s *set) broadcast(cont []byte, tags ...string) (res []string) {
 	defer s.rw.RUnlock()
 	if len(tags) != 0 {
 		var min int = math.MaxInt32
-		var mint *target
+		var mintg WTIManager
 		for _, tag := range tags {
 			if v, ok := s.mp[tag]; ok {
-				temN := v.Num()
-				if v.Num() < min {
+				temN := v.Count()
+				if v.Count() < min {
 					min = temN
-					mint = v
+					mintg = v
 				}
 			}
 		}
-		res = append(res, mint.BroadCastWithInnerJoinTag(cont, tags)...)
+		res = append(res, mintg.BroadCast(cont, tags...)...)
 		return
 	}
-
 	for _, v := range s.mp {
 		res = append(res, v.BroadCast(cont)...)
 	}
@@ -178,43 +148,31 @@ func (s *set) monitor() error {
 			switch st {
 			default:
 				continue
-			case TargetFLAGShouldEXTENSION:
+			case target.TargetStatusShouldEXTENSION:
 				s.expansion <- r
-			case TargetFLAGShouldReBalance:
+			case target.TargetStatusShouldReBalance:
 				s.balance <- r
-			case TargetFLAGShouldSHRINKS:
+			case target.TargetStatusShouldSHRINKS:
 				s.shrinks <- r
+			case target.TargetStatusShouldDestroy:
+
 			}
 		}
 		s.rw.RUnlock()
-
 	}
 }
 
 func (s *set) handleMonitor() error {
-	var duration = 20 * time.Second
-	t := time.NewTicker(duration)
+/*	var duration = 20 * time.Second
+	t := time.NewTicker(duration)*/
 	for {
 		select {
-		case <-t.C: // clear掉没有用户，且创建时间超过10min 的组
-			s.clear()
 		case t := <-s.expansion:
 			t.Expansion()
 		case t := <-s.shrinks:
 			t.Shrinks()
 		case t := <-s.balance:
 			t.Balance()
-		}
-	}
-}
-
-func (s *set) clear() {
-	s.rw.Lock()
-	defer s.rw.Unlock()
-	for k, v := range s.mp {
-		if v.num == 0 && time.Now().Unix()-v.createTime > 60*2 {
-			v.Destroy()
-			delete(s.mp, k)
 		}
 	}
 }

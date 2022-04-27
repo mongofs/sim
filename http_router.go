@@ -61,8 +61,8 @@ func (h *httpserver) initRouter() {
 		handleReturn(writer, res, err, remark)
 	})
 
-	h.http.HandleFunc("/wti/info", func(writer http.ResponseWriter, request *http.Request) {
-		remark := "/wti/info"
+	h.http.HandleFunc("/target/info", func(writer http.ResponseWriter, request *http.Request) {
+		remark := "/target/info"
 		if err := request.ParseForm(); err != nil {
 			handleReturn(writer, nil, err, remark)
 			return
@@ -76,8 +76,8 @@ func (h *httpserver) initRouter() {
 		handleReturn(writer, res, err, remark)
 	})
 
-	h.http.HandleFunc("/wti/list", func(writer http.ResponseWriter, request *http.Request) {
-		remark := "/wti/list"
+	h.http.HandleFunc("/target/list", func(writer http.ResponseWriter, request *http.Request) {
+		remark := "/target/list"
 		if err := request.ParseForm(); err != nil {
 			handleReturn(writer, nil, err, remark)
 			return
@@ -86,8 +86,8 @@ func (h *httpserver) initRouter() {
 		handleReturn(writer, res, err, remark)
 	})
 
-	h.http.HandleFunc("/wti/broadcast", func(writer http.ResponseWriter, request *http.Request) {
-		remark := "/wti/broadcast"
+	h.http.HandleFunc("/target/broadcast", func(writer http.ResponseWriter, request *http.Request) {
+		remark := "/target/broadcast"
 		if err := request.ParseForm(); err != nil {
 			handleReturn(writer, nil, err, remark)
 			return

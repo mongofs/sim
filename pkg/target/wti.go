@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package sim
+package target
 
 type TargetStatus int
 
@@ -24,6 +24,7 @@ const (
 )
 
 type Client interface {
+
 	Send([]byte) error
 
 	// HaveTags 判断用户是否存在这批tag，这个函数是用于支持BroadManager的交集推送，如何判断交集中实际
@@ -37,12 +38,16 @@ type Client interface {
 
 
 type ClientManager interface {
-	Add(cli Client)
 	Del(token []string) ([]string, int)
-	Count() int
 }
 
+
 type TargetManager interface {
+
+	Add(cli Client)ClientManager
+
+	Count() int
+
 	Info() *TargetInfo
 
 	// Status 每次调用获取到当前target的相关状态，调用manager本身的其他暴露的端口进行耗时的操作，比如进行
@@ -73,16 +78,17 @@ type BroadCastManager interface {
 	// 交集广播，和上面的不同的是，只有拥有多个标签的用户才能进行广播，比如说 man 、 18、178
 	// 这三个标签都满足了才能进行广播，我们只能选择广播器所依附的实体对象进行再筛选，一般依附的
 	// 实体对象我们选择最少数量原则
-	BroadCast(data []byte,tags[]string) []string
+	BroadCast(data []byte,tags ... string) []string
 }
 
+
 type TargetInfo struct {
-	name       string
-	online     int
-	limit      int
-	createTime int64
-	status     int
-	numG       int
-	change     int //状态变更次数
+	Name       string
+	Online     int
+	Limit      int
+	CreateTime int64
+	Status     int
+	NumG       int
+	Change     int //状态变更次数
 	GInfo      []*map[string]string
 }

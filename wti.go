@@ -13,66 +13,49 @@
 
 package sim
 
-type targetFlag int
-
-const (
-	TargetFlagNORMAL          = iota // normal
-	TargetFLAGShouldEXTENSION        // start extension
-	TargetFLAGEXTENSION              // extension
-	TargetFLAGShouldSHRINKS          // start shrinks
-	TargetFLAGSHRINKS                // shrinks
-	TargetFLAGShouldReBalance        // start reBalance
-	TargetFLAGREBALANCE              // reBalance
+import (
+	"sim/pkg/target"
 )
 
-type Monitor interface {
-	Monitor() error
+type WTIManager interface {
+	target.TargetManager
+	target.ClientManager
+	target.BroadCastManager
 }
 
-type Balancer interface {
-	Expansion()
-	Shrinks()
-	Balance()
-}
-
-type BroadCaster interface {
-	BroadCast([]byte)
-	BroadCastByTarget(map[string][]byte)
-	BroadCastWithInnerJoinTag([]byte, []string)
-}
 
 func StartWTIServer() []ParallelFunc {
-	return wti.RegisterParallelFunc()
+	return wti.run()
 }
 
-func WTIAdd(tag string, client Client) (*target, error) {
+func WTIAdd(tag string, client Client) (target.ClientManager, error) {
 	if client == nil {
 		return nil, nil
 	}
-	return wti.Add(tag, client)
+	return wti.add(tag, client)
 }
 
-func WTIList() []*targetInfo {
-	return wti.List()
+func WTIList() []*target.TargetInfo {
+	return wti.list()
 }
 
-func WTIInfo(tag string) (*targetInfo, error) {
+func WTIInfo(tag string) (*target.TargetInfo, error) {
 	if len(tag) == 0 {
 		return nil, nil
 	}
-	return wti.Info(tag)
+	return wti.info(tag)
 }
 
 func WTIBroadCastByTarget(tc map[string][]byte) ([]string, error) {
 	if tc == nil {
 		return nil, nil
 	}
-	return wti.BroadCastByTarget(tc)
+	return wti.broadcastByTag(tc)
 }
 
-func WTIBroadCastWithInnerJoinTag(cont []byte, tags []string) ([]string, error) {
+func WTIBroadCastWithInnerJoinTag(cont []byte, tags []string) []string {
 	if cont == nil || tags == nil {
-		return nil, nil
+		return nil
 	}
-	return wti.BroadCastWithInnerJoinTag(cont, tags)
+	return wti.broadcast(cont,tags...)
 }

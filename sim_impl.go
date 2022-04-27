@@ -80,13 +80,13 @@ func (s *sim) WTITargetList(ctx context.Context, req *im.WTITargetListReq) (*im.
 	var result []*im.Info
 	for _,v := range res {
 		result = append(result,  &im.Info{Info: map[string]string{
-			"tag" : v.name,
-			"online": strconv.Itoa(v.online),
-			"limit": strconv.Itoa(v.limit),
-			"createTime": strconv.Itoa(int(v.createTime)),
-			"status":strconv.Itoa(v.status),
-			"change" : strconv.Itoa(v.change),
-			"numG" : strconv.Itoa(v.numG),
+			"tag" : v.Name,
+			"online": strconv.Itoa(v.Online),
+			"limit": strconv.Itoa(v.Limit),
+			"createTime": strconv.Itoa(int(v.CreateTime)),
+			"status":strconv.Itoa(v.Status),
+			"change" : strconv.Itoa(v.Change),
+			"numG" : strconv.Itoa(v.NumG),
 		}})
 	}
 	return &im.WTITargetListInfoReply{
@@ -105,12 +105,12 @@ func (s *sim) WTITargetInfo(ctx context.Context, req *im.WTITargetInfoReq) (*im.
 		gInfos = append(gInfos, &im.Info{Info:* v})
 	}
 	result := &im.WTITargetInfoReply{
-		Tag:        res.name,
-		Online:     int32(res.online),
-		Limit:      int32(res.limit),
-		CreateTime: res.createTime,
-		Status:     int32(res.status),
-		NumG:       int32(res.numG),
+		Tag:        res.Name,
+		Online:     int32(res.Online),
+		Limit:      int32(res.Limit),
+		CreateTime: res.CreateTime,
+		Status:     int32(res.Status),
+		NumG:       int32(res.NumG),
 		GInfos:     gInfos,
 	}
 	return result, nil
