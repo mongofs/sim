@@ -23,13 +23,13 @@ import (
 
 // target 是相同的标签的管理单元，相同的target都会放置到相同的
 type target struct {
-	rw      sync.RWMutex
-	name    string
-	num     int           // online user
-	numG    int           // online Group
-	targetG int           // should be numG
-	maxGOnlineDiff int  	// 可容忍的最大差值
-	offset  *list.Element // the next user group offset
+	rw             sync.RWMutex
+	name           string
+	num            int           // online user
+	numG           int           // online Group
+	targetG        int           // should be numG
+	maxGOnlineDiff int           // 可容忍的最大差值
+	offset         *list.Element // the next user group offset
 
 	flag          TargetStatus //
 	capChangeTime time.Duration
@@ -96,29 +96,33 @@ func (t *target) BroadCast(data []byte, tags []string) []string {
 
 func (t *target) Expansion() {
 	since := time.Now()
-	t.expansion()
+	t.rw.Lock()
+	defer t.rw.Unlock()
+	t.expansion(t.targetG - t.numG)
 	escape := time.Since(since)
 	logging.Infof("sim :  target Expansion , spend time %v ,", escape)
 }
 
 func (t *target) Shrinks() {
+	t.rw.Lock()
+	t.rw.Unlock()
+	shrinksNum  := t.num -t.targetG
+	if shrinksNum >= 0 {return}
 	since := time.Now()
-	t.shrinks()
+	t.shrinks(shrinksNum)
 	escape := time.Since(since)
 	logging.Infof("sim :  target Shrinks , spend time %v ,", escape)
 }
 
 func (t *target) Balance() {
 	since := time.Now()
-	t.reBalance()
+	t.balance()
 	escape := time.Since(since)
 	logging.Infof("sim :  target %v Balance ,online user  %v ,countG  %v , spend time %v ,", t.name, t.num, t.numG, escape)
 }
 
 func (t *target) Status() TargetStatus {
-	t.rw.RLock()
-	defer t.rw.RUnlock()
-	return t.flag
+	return t.fixStatus()
 }
 
 func (t *target) Destroy() {
@@ -206,51 +210,42 @@ func (t *target) moveOffset() {
 	}
 }
 
-
-func (t *target) expansion() {
+func (t *target) fixStatus() TargetStatus {
 	t.rw.Lock()
 	defer t.rw.Unlock()
-	t.flag = TargetStatusEXTENSION
-	diff := t.targetG - t.numG
-	for i := 0; i < diff; i++ {
-		newG := GetG(t.limit)
-		t.li.PushBack(newG)
-		t.numG += 1
-	}
-	t.flag = TargetStatusNORMAL
-}
 
-func (t *target) fixStatus() {
-	t.rw.Lock()
-	defer t.rw.Unlock()
 	// 修正targetG
-	targetG := t.num/t.limit + 1
-	if targetG == t.targetG {
-		return
+	tg := t.num/t.limit + 1 // 2 /2 =1 , 3/2 = 1
+	if tg == t.targetG {
+		return t.flag
 	}
-	t.targetG = targetG
-	if targetG > t.numG {
-		// 目标个数大于当前个数，应该扩容
+	t.targetG = tg
+
+	if t.numG == t.targetG {
+		return t.flag
+	}
+
+	if t.targetG > t.numG {
 		t.flag = TargetStatusShouldEXTENSION
-		return
+		return t.flag
 	}
-	if targetG < t.numG {
-		// 目标个数小于当前的个数 ，应该缩容
+	if t.targetG < t.numG {
 		t.flag = TargetStatusShouldSHRINKS
-		return
+		return t.flag
 	}
-	if t.num == 0 && time.Now().Unix()- t.createTime > 120  {
-		t.flag = TargetStatusShouldBeDestroy
-		return
+	if t.num == 0 && time.Now().Unix()-t.createTime > 120 {
+		t.flag = TargetStatusShouldDestroy
+		return t.flag
 	}
 	node := t.li.Front()
 	var n []int
 	for node != nil {
 		n = append(n, node.Value.(*group).num)
+		node = node.Next()
 	}
 
-	var min,max = 10000,0
-	for _,v := range n {
+	var min, max = 10000, 0
+	for _, v := range n {
 		if v < min {
 			min = v
 		}
@@ -258,31 +253,33 @@ func (t *target) fixStatus() {
 			max = v
 		}
 	}
-	if max -min >= t.maxGOnlineDiff {
+	if max-min >= t.maxGOnlineDiff {
 		t.flag = TargetStatusShouldReBalance
 	}
-	return
+	return t.flag
 }
 
-func (t *target) shrinks() {
+func (t *target) expansion(num int) {
+	for i := 0; i < num; i++ {
+		newG := GetG(t.limit)
+		t.li.PushBack(newG)
+		t.numG += 1
+	}
+}
+
+func (t *target) shrinks(num int) {
 	// 缩容的几个重要问题
 	// 1.  什么时候判断是否应该缩容 ：
 	// 2.  缩容应该由谁来判定  :  每次删除用户就需要进行判断，
 	// 3.  缩容的标准是什么 ： 总在线人数和总的G 所分摊的人数来判断需不需要缩容，但是需要额外容量规划，如果使用量低于30% 可以开启缩容
 	// 3.1 缩容的目标是： 将利用率保证在60% 左右
 	// 4.  谁来执行shrink : 应该由target 聚合层进行统一状态管理
-	t.rw.Lock()
-	t.rw.Unlock()
 
-	diff := t.numG - t.targetG
-	if diff <= 0 {
-		return
-	}
-	t.flag =TargetStatusSHRINKS
+
 	var free []Client
 	var freeNode []*list.Element
 	node := t.li.Front()
-	for i := 0; i < diff; i++ {
+	for i := 0; i < num; i++ {
 		ng := node.Value.(*group)
 		res, err := ng.free()
 		if err != nil {
@@ -291,6 +288,7 @@ func (t *target) shrinks() {
 		}
 		free = append(free, res...)
 		t.numG--
+		ng.Destroy()
 		if node.Next() != nil {
 			freeNode = append(freeNode, node)
 			node = node.Next()
@@ -306,10 +304,21 @@ func (t *target) shrinks() {
 	node1 := t.li.Front()
 	ng := node1.Value.(*group)
 	ng.addMany(free)
-	t.flag = TargetStatusNORMAL
 }
 
-func (t *target) reBalance() {
+// @ forTesting
+func (t *target) distribute() (res []int) {
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+	node := t.li.Front()
+	for node != nil {
+		res = append(res, node.Value.(*group).num)
+		node = node.Next()
+	}
+	return
+}
+
+func (t *target) balance() {
 	// 根据当前节点进行平均每个节点的人数
 	avg := t.num/t.numG + 1
 
@@ -361,7 +370,6 @@ func (t *target) reBalance() {
 		g.addMany(steals[:w])
 		steals = steals[w:]
 	}
-
 }
 
 func (t *target) destroy() {

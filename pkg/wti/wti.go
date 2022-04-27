@@ -18,12 +18,9 @@ type TargetStatus int
 const (
 	TargetStatusNORMAL          = iota // normal
 	TargetStatusShouldEXTENSION        // start extension
-	TargetStatusEXTENSION              // extension
 	TargetStatusShouldSHRINKS          // start shrinks
-	TargetStatusSHRINKS                // shrinks
 	TargetStatusShouldReBalance        // start reBalance
-	TargetStatusREBALANCE              // reBalance
-	TargetStatusShouldBeDestroy        // should destroy
+	TargetStatusShouldDestroy        // should destroy
 )
 
 type Client interface {
@@ -48,9 +45,11 @@ type ClientManager interface {
 type TargetManager interface {
 	Info() *TargetInfo
 
+	// Status 每次调用获取到当前target的相关状态，调用manager本身的其他暴露的端口进行耗时的操作，比如进行
+	// 重平衡、进行扩容、进行缩容等操作，
 	Status() TargetStatus
 
-	// Destroy 判断status 状态为
+	// Destroy 判断status 状态为shouldDestroy的时候可以调用此方法
 	Destroy()
 
 	// Expansion target 本身支持扩张，如果用户在某个tag下增长到一定的人数，那么在这个target为了减少锁的粒度

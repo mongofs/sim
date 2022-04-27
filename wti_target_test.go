@@ -129,7 +129,7 @@ func TestTarget_Shrinks(t *testing.T) {
 	})
 }
 
-func TestTarget_ReBalance(t *testing.T) {
+func TestTarget_Balance(t *testing.T) {
 	Convey("测试重平衡", t, func() {
 		Convey("测试容量为20", func() {
 			tg, err := NewTarget("demo", 20)
@@ -139,7 +139,7 @@ func TestTarget_ReBalance(t *testing.T) {
 			for i := 0; i < 200; i++ {
 				tg.add(&MockClient{token: fmt.Sprintf("aaa_%d", i)})
 			}
-			fmt.Println(tg.Distribute())
+			fmt.Println(tg.distribute())
 			tg.Expansion()
 			tg.reBalance()
 			fmt.Println(tg.Distribute())
@@ -174,10 +174,4 @@ func TestTarget_ReBalance(t *testing.T) {
 	})
 }
 
-func TestTarget_BroadCast(t *testing.T) {
 
-}
-
-func TestTarget_BroadCastWithInnerJoinTag(t *testing.T) {
-
-}
