@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"net/http"
-	"sim/pkg/target"
+	"sim/pkg/label"
 	"sync"
 	"time"
 
@@ -67,7 +67,7 @@ type gorilla struct {
 	messageType MessageType // text /binary
 
 	// tags 这里是标签管理的地方
-	tags map[string]target.ClientManager
+	tags map[string]label.ForClient
 }
 
 func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.ResponseWriter, r *http.Request, handlerReceive Receive) (Connect, error) {
@@ -144,12 +144,12 @@ func (c *gorilla) HaveTags(tags []string) bool {
 func (c *gorilla) SetTag(tag string) error {
 	c.rw.Lock()
 	defer c.rw.Unlock()
-	tgAd, err := WTIAdd(tag, c)
+	tgAd, err := label.Add(tag, c)
 	if err != nil {
 		return err
 	}
 	if c.tags == nil {
-		c.tags = make(map[string]target.ClientManager,3)
+		c.tags = make(map[string]label.ForClient,3)
 	}
 	c.tags[tag] = tgAd
 	return nil
@@ -223,14 +223,14 @@ func (c *gorilla) clear(tag ... string) {
 	defer c.rw.Unlock()
 	if len(tag) == 0 {
 		for k,v := range c.tags {
-			v.Del([]string{c.Identification()})
+			v.Delete([]string{c.Identification()})
 			delete(c.tags,k)
 		}
 	}else{
 		for _,v := range tag {
 			if tar, ok := c.tags[v]; ok {
 				delete(c.tags, v)
-				tar.Del([]string{c.Identification()})
+				tar.Delete([]string{c.Identification()})
 			}
 		}
 	}

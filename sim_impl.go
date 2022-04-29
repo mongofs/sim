@@ -17,6 +17,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"sim/pkg/label"
 	"strconv"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 type sim struct {
 	http *httpserver
 	rpc *grpc.Server
+	label label.Manager
 	bs  []*bucket
 	ps  atomic.Int64
 
@@ -75,8 +77,10 @@ func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp,
 	return result, err
 }
 
-func (s *sim) WTITargetList(ctx context.Context, req *im.WTITargetListReq) (*im.WTITargetListInfoReply, error) {
-	res := WTIList()
+//
+
+func (s *sim) LabelList(ctx context.Context, req *im.LabelListReq) (*im.LabelListReply, error){
+	res := s.label.List(0,0)
 	var result []*im.Info
 	for _,v := range res {
 		result = append(result,  &im.Info{Info: map[string]string{
@@ -89,14 +93,13 @@ func (s *sim) WTITargetList(ctx context.Context, req *im.WTITargetListReq) (*im.
 			"numG" : strconv.Itoa(v.NumG),
 		}})
 	}
-	return &im.WTITargetListInfoReply{
+	return &im.LabelListReply{
 		Count: int32(len(result)),
 		Info:  result,
 	},nil
 }
-
-func (s *sim) WTITargetInfo(ctx context.Context, req *im.WTITargetInfoReq) (*im.WTITargetInfoReply, error) {
-	res, err := WTIInfo(req.Tag)
+func (s *sim) LabelInfo(ctx context.Context, req *im.LabelInfoReq) (*im.LabelInfoReply, error){
+	res, err := s.label.LabelInfo(req.Tag)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +107,7 @@ func (s *sim) WTITargetInfo(ctx context.Context, req *im.WTITargetInfoReq) (*im.
 	for _, v := range res.GInfo {
 		gInfos = append(gInfos, &im.Info{Info:* v})
 	}
-	result := &im.WTITargetInfoReply{
+	result := &im.LabelInfoReply{
 		Tag:        res.Name,
 		Online:     int32(res.Online),
 		Limit:      int32(res.Limit),
@@ -115,24 +118,23 @@ func (s *sim) WTITargetInfo(ctx context.Context, req *im.WTITargetInfoReq) (*im.
 	}
 	return result, nil
 }
-
-func (s *sim) WTIBroadcastByTarget(ctx context.Context, req *im.WTIBroadcastReq) (*im.BroadcastReply, error) {
-	res, err := WTIBroadCastByTarget(req.Data)
+func (s *sim) BroadCastByLabel(ctx context.Context, req *im.BroadCastByLabelReq) (*im.BroadcastReply, error){
+	res, err := s.label.BroadCastByLabel(req.Data)
 	if err != nil {
 		return nil, err
 	}
 	result := &im.BroadcastReply{Fail: res}
 	return result, nil
 }
-
-func (s *sim) WTIBroadCastWithInnerJoinTag(ctx context.Context, req *im.WtiBroadcastWithInnerJoinReq) (*im.BroadcastReply, error) {
-	res, err := WTIBroadCastWithInnerJoinTag(req.Data, req.Tags)
+func (s *sim) BroadCastByLabelWithInJoin(ctx context.Context, req *im.BroadCastByLabelWithInJoinReq) (*im.BroadcastReply, error){
+	res, err := s.label.BroadCastWithInnerJoinLabel(req.Data, req.Tags)
 	if err != nil {
 		return nil, err
 	}
 	resutl := &im.BroadcastReply{Fail: res}
 	return resutl, nil
 }
+
 
 func (s *sim) initHttp (){
 	s.http = newHttpServer(s.opt.RouterValidateKey,s.opt.RouterConnection,s.opt.ServerHttpPort,s.upgrade,s)

@@ -29,10 +29,10 @@ var (
 	ErrUserBufferIsFull = errors.New("sim : The client buffer is about to fill up")
 
 
-	ErrGroupBadParam = errors.New("sim/target :  bad param ")
+	ErrBadParam = errors.New("sim :  bad param ")
 
 
-	ERRWTINotStartServer = errors.New("sim/target: not start target example ")
-	ERRWTIGroupNotClear = errors.New("sim/target : group is not clear ")
-	ERRWTITargetNotExist = errors.New("sim/target : target is not exist")
+	ERRWTINotStartServer = errors.New("sim/label: not start label example ")
+	ERRWTIGroupNotClear = errors.New("sim/label : group is not clear ")
+	ERRWTITargetNotExist = errors.New("sim/label : label is not exist")
 )

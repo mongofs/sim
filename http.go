@@ -59,7 +59,7 @@ func newHttpServer(validateKey,validateRouter, port string, up Upgrade, api API)
 	return hs
 }
 
-func (s *httpserver) Run() ParallelFunc {
+func (s *httpserver) Run() func()error {
 	s.initRouter()
 	return s.run
 }
@@ -97,6 +97,7 @@ func (s *httpserver) connection(writer http.ResponseWriter, r *http.Request) {
 func (s *httpserver) run() error {
 	listen, err := net.Listen("tcp", s.port)
 	if err != nil {
+		logging.Infof("sim : occur error when  start HTTP example at %s ,err : %v", s.port,err.Error())
 		return err
 	}
 	logging.Infof("sim : start HTTP example at %s ", s.port)

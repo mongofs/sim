@@ -57,26 +57,26 @@ message Info{
   map<string, string> Info = 1 ;
 }
 
-// ============================ WTITargetList ======================
+// ============================ LabelList ======================
 
-message WTITargetListReq {
+message LabelListReq {
   int32  limit = 1;
   int32  page = 2 ;
 }
 
-message WTITargetListInfoReply {
+message LabelListReply {
   int32  count = 1; // 总的target 数量
   repeated  Info info = 2 ; //target info
 }
 
-// ============================ WTITargetInfo ======================
+// ============================ LabelInfo ======================
 
 
-message WTITargetInfoReq {
+message LabelInfoReq {
   string tag = 1 ;
 }
 
-message WTITargetInfoReply {
+message LabelInfoReply {
   string tag = 1 ;
   int32  online = 2 ;
   int32  limit = 3;
@@ -87,30 +87,25 @@ message WTITargetInfoReply {
 }
 
 
-// ============================ WTIBroadcastByTarget ======================
+// ============================ BroadCastByLabel ======================
 
 // target1 ,content1
 // target2 ,content2
-message WTIBroadcastReq{
+message BroadCastByLabelReq{
   map<string, bytes> data = 1;
 }
 
-message WTIBroadcastReply {
-  repeated string failed = 1 ;
-}
 
-// ===================WTIBroadCastWithInnerJoinTag ======================
+// ===================BroadCastByLabelWithInJoin ======================
 
 
 
-message WtiBroadcastWithInnerJoinReq {
+message BroadCastByLabelWithInJoinReq {
   bytes  data = 1 ;
   repeated  string tags = 2;
 }
 
-message WtiBroadcastWithInnerJoinReply{
 
-}
 
 service Basic {
   // Ping Service
@@ -120,8 +115,8 @@ service Basic {
   rpc Broadcast(BroadcastReq) returns (BroadcastReply);
 
   // wti server
-  rpc WTITargetList (WTITargetListReq) returns (WTITargetListInfoReply);
-  rpc WTITargetInfo (WTITargetInfoReq) returns (WTITargetInfoReply);
-  rpc WTIBroadcast (WTIBroadcastReq) returns (BroadcastReply);
-  rpc WTIBroadCastWithInnerJoinTag(WtiBroadcastWithInnerJoinReq) returns (BroadcastReply);
+  rpc LabelList (LabelListReq) returns (LabelListReply);
+  rpc LabelInfo (LabelInfoReq) returns (LabelInfoReply);
+  rpc BroadCastByLabel (BroadCastByLabelReq) returns (BroadcastReply);
+  rpc BroadCastByLabelWithInJoin(BroadCastByLabelWithInJoinReq) returns (BroadcastReply);
 }

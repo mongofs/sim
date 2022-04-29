@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package target
+package label
 
 import (
 	"container/list"
@@ -21,8 +21,8 @@ import (
 	"time"
 )
 
-// target 是相同的标签的管理单元，相同的target都会放置到相同的
-type target struct {
+// label 是相同的标签的管理单元，相同的target都会放置到相同的
+type label struct {
 	rw             sync.RWMutex
 	name           string
 	num            int           // online user
@@ -40,17 +40,17 @@ type target struct {
 }
 
 var targetPool = sync.Pool{New: func() interface{} {
-	return &target{
+	return &label{
 		rw: sync.RWMutex{},
 		li: list.New(),
 	}
 }}
 
-func NewTarget(targetName string, limit int) (*target, error) {
+func NewLabel(targetName string, limit int) (*label, error) {
 	if targetName == "" || limit == 0 {
-		return nil, errors.New("bad param of target")
+		return nil, errors.New("bad param of label")
 	}
-	tg := targetPool.Get().(*target)
+	tg := targetPool.Get().(*label)
 	tg.name = targetName
 	tg.limit = limit
 	tg.createTime = time.Now().Unix()
@@ -58,16 +58,17 @@ func NewTarget(targetName string, limit int) (*target, error) {
 	elm := tg.li.PushFront(g)
 	tg.offset = elm
 	tg.numG++
+	tg.getMaxGOnlineDiff()
 	return tg, nil
 }
 
 // ============================================= API =================================
 
-func (t *target) Info() *TargetInfo {
+func (t *label) Info() *LabelInfo {
 	return t.info()
 }
 
-func (t *target) Add(cli Client)ClientManager {
+func (t *label) Add(cli Client)ForClient {
 	if cli == nil {
 		return nil
 	}
@@ -75,65 +76,65 @@ func (t *target) Add(cli Client)ClientManager {
 	return t
 }
 
-func (t *target) Del(token []string) ([]string, int) {
+func (t *label) Delete(token []string) ([]string, int) {
 	if token == nil {
 		return nil, 0
 	}
 	return t.del(token)
 }
 
-func (t *target) Count() int {
+func (t *label) Count() int {
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	return t.num
 }
 
-func (t *target) BroadCast(data []byte, tags ...string) []string {
+func (t *label) BroadCast(data []byte, tags ...string) []string {
 	if len(data) == 0 {
 		return nil
 	}
 	return t.broadcast(data, tags...)
 }
 
-func (t *target) Expansion() {
+func (t *label) Expansion() {
 	since := time.Now()
 	t.rw.Lock()
 	defer t.rw.Unlock()
 	t.expansion(t.targetG - t.numG)
 	escape := time.Since(since)
-	logging.Infof("sim :  target Expansion , spend time %v ,", escape)
+	logging.Infof("sim :  label Expansion , spend time %v ,", escape)
 }
 
-func (t *target) Shrinks() {
+func (t *label) Shrinks() {
 	t.rw.Lock()
 	t.rw.Unlock()
-	shrinksNum  := t.num -t.targetG
-	if shrinksNum >= 0 {return}
+	shrinksNum  := t.numG -t.targetG
+	if shrinksNum <= 0 {return}
 	since := time.Now()
 	t.shrinks(shrinksNum)
 	escape := time.Since(since)
-	logging.Infof("sim :  target Shrinks , spend time %v ,", escape)
+	logging.Infof("sim :  label Shrinks ,count %v spend time %v ,",shrinksNum, escape)
 }
 
-func (t *target) Balance() {
+func (t *label) Balance() {
 	since := time.Now()
 	t.balance()
 	escape := time.Since(since)
-	logging.Infof("sim :  target %v Balance ,online user  %v ,countG  %v , spend time %v ,", t.name, t.num, t.numG, escape)
+	logging.Infof("sim :  label %v Balance ,online user  %v ,countG  %v , spend time %v ,", t.name, t.num, t.numG, escape)
 }
 
-func (t *target) Status() TargetStatus {
+func (t *label) Status() TargetStatus {
 	return t.fixStatus()
 }
 
-func (t *target) Destroy() {
+func (t *label) Destroy() {
 	if t.num != 0 {
 		return
 	}
 	t.destroy()
 }
 
-func (t *target) broadcast(data []byte, tags ...string) []string {
+func (t *label) broadcast(data []byte, tags ...string) []string {
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	node := t.li.Front()
@@ -154,8 +155,8 @@ func (t *target) broadcast(data []byte, tags ...string) []string {
 	return res
 }
 
-func (t *target) info() *TargetInfo {
-	var res = &TargetInfo{}
+func (t *label) info() *LabelInfo {
+	var res = &LabelInfo{}
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	res.Name = t.name
@@ -176,7 +177,7 @@ func (t *target) info() *TargetInfo {
 	return res
 }
 
-func (t *target) add(cli Client) {
+func (t *label) add(cli Client) {
 	t.rw.Lock()
 	defer t.rw.Unlock()
 	g := t.offset.Value.(*group)
@@ -188,7 +189,7 @@ func (t *target) add(cli Client) {
 	return
 }
 
-func (t *target) del(token []string) (res []string, current int) {
+func (t *label) del(token []string) (res []string, current int) {
 	t.rw.Lock()
 	defer t.rw.Unlock()
 	node := t.li.Front()
@@ -203,7 +204,7 @@ func (t *target) del(token []string) (res []string, current int) {
 	return
 }
 
-func (t *target) moveOffset() {
+func (t *label) moveOffset() {
 	if t.offset.Next() != nil {
 		t.offset = t.offset.Next()
 	} else {
@@ -211,13 +212,20 @@ func (t *target) moveOffset() {
 	}
 }
 
-func (t *target) fixStatus() TargetStatus {
+func (t *label) fixStatus() TargetStatus {
 	t.rw.Lock()
 	defer t.rw.Unlock()
 
+	if t.num == 0 && time.Now().Unix()-t.createTime > 30 {
+		t.flag = TargetStatusShouldDestroy
+		return t.flag
+	}
+
 	// 修正targetG
 	tg := t.num/t.limit + 1 // 2 /2 =1 , 3/2 = 1
-	if tg == t.targetG {
+	if tg == t.targetG  && t.targetG == t.numG && t.num != 0{
+		// targetG == numG ，说明状态被校正，但是内部可能存在不平衡状态
+		t.fixBalance()
 		return t.flag
 	}
 	t.targetG = tg
@@ -234,17 +242,23 @@ func (t *target) fixStatus() TargetStatus {
 		t.flag = TargetStatusShouldSHRINKS
 		return t.flag
 	}
-	if t.num == 0 && time.Now().Unix()-t.createTime > 120 {
-		t.flag = TargetStatusShouldDestroy
-		return t.flag
-	}
+
+
+
+	return t.flag
+}
+
+func (t *label) getMaxGOnlineDiff(){
+	t.maxGOnlineDiff = t.limit/3
+}
+
+func (t *label) fixBalance(){
 	node := t.li.Front()
 	var n []int
 	for node != nil {
 		n = append(n, node.Value.(*group).num)
 		node = node.Next()
 	}
-
 	var min, max = 10000, 0
 	for _, v := range n {
 		if v < min {
@@ -256,11 +270,13 @@ func (t *target) fixStatus() TargetStatus {
 	}
 	if max-min >= t.maxGOnlineDiff {
 		t.flag = TargetStatusShouldReBalance
+	}else{
+		t.flag = TargetStatusNORMAL
 	}
-	return t.flag
 }
 
-func (t *target) expansion(num int) {
+
+func (t *label) expansion(num int) {
 	for i := 0; i < num; i++ {
 		newG := GetG(t.limit)
 		t.li.PushBack(newG)
@@ -268,7 +284,7 @@ func (t *target) expansion(num int) {
 	}
 }
 
-func (t *target) shrinks(num int) {
+func (t *label) shrinks(num int) {
 	// 缩容的几个重要问题
 	// 1.  什么时候判断是否应该缩容 ：
 	// 2.  缩容应该由谁来判定  :  每次删除用户就需要进行判断，
@@ -308,7 +324,7 @@ func (t *target) shrinks(num int) {
 }
 
 // @ forTesting
-func (t *target) distribute() (res []int) {
+func (t *label) distribute() (res []int) {
 	t.rw.RLock()
 	defer t.rw.RUnlock()
 	node := t.li.Front()
@@ -319,7 +335,7 @@ func (t *target) distribute() (res []int) {
 	return
 }
 
-func (t *target) balance() {
+func (t *label) balance() {
 	// 根据当前节点进行平均每个节点的人数
 	avg := t.num/t.numG + 1
 
@@ -373,7 +389,7 @@ func (t *target) balance() {
 	}
 }
 
-func (t *target) destroy() {
+func (t *label) destroy() {
 	t.createTime, t.num, t.limit, t.numG = 0, 0, 0, 0
 	t.flag = 0
 	t.li = list.New()

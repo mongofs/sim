@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package target
+package label
 
 import (
 	"strconv"
@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-const DefaultCapacity = 128
+
 
 
 

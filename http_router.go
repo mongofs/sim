@@ -61,45 +61,46 @@ func (h *httpserver) initRouter() {
 		handleReturn(writer, res, err, remark)
 	})
 
-	h.http.HandleFunc("/target/info", func(writer http.ResponseWriter, request *http.Request) {
-		remark := "/target/info"
+	h.http.HandleFunc("/label/info", func(writer http.ResponseWriter, request *http.Request) {
+		remark := "/label/info"
 		if err := request.ParseForm(); err != nil {
 			handleReturn(writer, nil, err, remark)
 			return
 		}
-		tag := request.Form.Get("tag")
+		tag := request.Form.Get("label")
 		if tag == "" {
-			handleReturn(writer, nil, errors.New("param should have 'tag' "), remark)
+			handleReturn(writer, nil, errors.New("param should have 'label' "), remark)
 			return
 		}
-		res, err := h.handler.WTITargetInfo(context.Background(), &im.WTITargetInfoReq{Tag: tag})
+		res, err := h.handler.LabelInfo(context.Background(), &im.LabelInfoReq{Tag: tag})
 		handleReturn(writer, res, err, remark)
 	})
 
-	h.http.HandleFunc("/target/list", func(writer http.ResponseWriter, request *http.Request) {
-		remark := "/target/list"
+	h.http.HandleFunc("/label/list", func(writer http.ResponseWriter, request *http.Request) {
+		remark := "/label/list"
 		if err := request.ParseForm(); err != nil {
 			handleReturn(writer, nil, err, remark)
 			return
 		}
-		res, err := h.handler.WTITargetList(context.Background(), &im.WTITargetListReq{})
+		res, err := h.handler.LabelList(context.Background(), &im.LabelListReq{})
 		handleReturn(writer, res, err, remark)
 	})
 
-	h.http.HandleFunc("/target/broadcast", func(writer http.ResponseWriter, request *http.Request) {
-		remark := "/target/broadcast"
+	h.http.HandleFunc("/label/broadcast", func(writer http.ResponseWriter, request *http.Request) {
+		remark := "/label/broadcast"
 		if err := request.ParseForm(); err != nil {
 			handleReturn(writer, nil, err, remark)
 			return
 		}
 		content := request.Form.Get("content")
-		tag := request.Form.Get("tag")
+		tag := request.Form.Get("label")
 		if tag == "" || content == "" {
-			handleReturn(writer, nil, errors.New("param should have 'tag && content' "), remark)
+			handleReturn(writer, nil, errors.New("param should have 'label && content' "), remark)
 			return
 		}
-		res, err := h.handler.WTIBroadcastByTarget(context.Background(),
-			&im.WTIBroadcastReq{Data: map[string][]byte{
+		res, err := h.handler.BroadCastByLabel(
+			context.Background(),
+			&im.BroadCastByLabelReq{Data: map[string][]byte{
 				tag: []byte(content),
 			}})
 		handleReturn(writer, res, err, remark)

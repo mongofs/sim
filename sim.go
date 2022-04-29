@@ -20,24 +20,24 @@ import (
 	"os/signal"
 	im "sim/api/v1"
 	"sim/pkg/logging"
+	"sim/pkg/label"
 	"syscall"
 )
 
 //
 
 type API interface {
-
 	Ping(ctx context.Context, empty *im.Empty) (*im.Empty, error)
 	Online(ctx context.Context, empty *im.Empty) (*im.OnlineReply, error)
 	Broadcast(ctx context.Context, req *im.BroadcastReq) (*im.BroadcastReply, error)
 	SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp, error)
 
-	// --------------------------------------target  : should start target server
+	// --------------------------------------label  : should start label server
 
-	WTITargetList(ctx context.Context, req *im.WTITargetListReq) (*im.WTITargetListInfoReply, error)
-	WTITargetInfo(ctx context.Context, req *im.WTITargetInfoReq) (*im.WTITargetInfoReply, error)
-	WTIBroadcastByTarget(ctx context.Context, req *im.WTIBroadcastReq) (*im.BroadcastReply, error)
-	WTIBroadCastWithInnerJoinTag(ctx context.Context, req *im.WtiBroadcastWithInnerJoinReq) (*im.BroadcastReply, error)
+	LabelList(context.Context, *im.LabelListReq) (*im.LabelListReply, error)
+	LabelInfo(context.Context, *im.LabelInfoReq) (*im.LabelInfoReply, error)
+	BroadCastByLabel(context.Context, *im.BroadCastByLabelReq) (*im.BroadcastReply, error)
+	BroadCastByLabelWithInJoin(context.Context, *im.BroadCastByLabelWithInJoinReq) (*im.BroadcastReply, error)
 }
 
 
@@ -68,10 +68,10 @@ type Receive interface {
 	Handle(conn Connect, data []byte)
 }
 
-type ParallelFunc func() error
+
 
 func serverParallel(s *sim) <-chan error{
-	var prepareParallelFunc = []ParallelFunc{
+	var prepareParallelFunc = []func()error{
 		// 启用单独goroutine 进行监控
 		s.monitorOnline,
 		// 启用单独goroutine 进行运行
@@ -79,8 +79,9 @@ func serverParallel(s *sim) <-chan error{
 		s.http.Run(),
 	}
 	if s.opt.SupportPluginWTI {
-		wtiParaller := StartWTIServer()
-		prepareParallelFunc = append(prepareParallelFunc, wtiParaller...)
+		s.label = label.NewManager()
+		wtiParallel := s.label.Run()
+		prepareParallelFunc = append(prepareParallelFunc, wtiParallel...)
 	}
 	ch := make(chan error)
 	go func() {
@@ -89,7 +90,7 @@ func serverParallel(s *sim) <-chan error{
 	return ch
 }
 
-func parallel(parallels ...ParallelFunc) error {
+func parallel(parallels ...func()error) error {
 	wg := errgroup.Group{}
 	for _, v := range parallels {
 		wg.Go(v)

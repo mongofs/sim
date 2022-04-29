@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package target
+package label
 
 import (
 	"fmt"
@@ -36,11 +36,11 @@ func (m MockClient) Identification() string {
 	return m.token
 }
 
-func TestTarget_Status(t *testing.T) {
+func TestLabel_Status(t *testing.T) {
 	Convey("进行各种状态测试，查看状态是否判断正确", t, func() {
 		Convey("测试扩容过程中状态判断是否正确", func() {
 			// 容量为2
-			tg, err := NewTarget("demo", 2)
+			tg, err := NewLabel("demo", 2)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -57,7 +57,7 @@ func TestTarget_Status(t *testing.T) {
 		})
 
 		Convey("测试需要缩容的情况是否正确", func() {
-			tg, err := NewTarget("demo", 2)
+			tg, err := NewLabel("demo", 2)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -79,12 +79,30 @@ func TestTarget_Status(t *testing.T) {
 			tg.shrinks(5) // numG = 8
 			So(tgStatus4 == TargetStatusShouldSHRINKS && tg.targetG == 3 && tg.numG == 8, ShouldBeTrue)
 		})
+
+
+		Convey("测试在状态错误下能否自行校正", func() {
+			tg, err := NewLabel("demo", 2)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tg.Add(&MockClient{token: "1111"})
+			tg.Add(&MockClient{token: "1112"})
+			tg.Add(&MockClient{token: "1113"})
+			tg.Add(&MockClient{token: "1114"})
+			tgStatus1 := tg.Status()
+			So(tgStatus1 == TargetStatusShouldEXTENSION && tg.targetG == 3 && tg.numG == 1, ShouldBeTrue)
+			tg.expansion(2)
+			// 状态回归正常后
+			tgStatus2 := tg.Status()
+			So(tgStatus2 == TargetStatusShouldReBalance && tg.targetG == 3 && tg.numG == 3, ShouldBeTrue)
+		})
 	})
 }
 
 func TestTarget_Balance(t *testing.T) {
 	Convey("测试重平衡", t, func() {
-		tg, err := NewTarget("demo", 20)
+		tg, err := NewLabel("demo", 20,)
 		if err != nil {
 			t.Fatal(err)
 		}

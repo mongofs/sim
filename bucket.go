@@ -130,7 +130,7 @@ func (h *bucket) broadCast(data []byte, Ack bool) []string {
 	for _, cli := range h.clis {
 		err := cli.Send(data)
 		if err != nil {
-			res = append(res, cli.Token())
+			res = append(res, cli.Identification())
 			logging.Error(err)
 			continue
 		}
