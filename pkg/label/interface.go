@@ -23,7 +23,7 @@ const (
 	TargetStatusShouldDestroy          // should destroy
 )
 
-const DefaultCapacity = 20
+const DefaultCapacity = 128
 
 type Parallel func() error
 
