@@ -13,11 +13,7 @@
 
 package sim
 
-import (
-	. "github.com/smartystreets/goconvey/convey"
-	"sim/pkg/logging"
-	"testing"
-)
+import "sim/pkg/logging"
 
 type MockReceive struct{}
 
@@ -50,19 +46,13 @@ func (m mockDiscovery) Deregister() {
 	logging.Infof("sim : start Discover.Deregister success")
 }
 
-func TestRun(t *testing.T) {
-	Convey("测试创建服务器", t, func() {
-		optionfunc := []OptionFunc{
-			WithServerRpcPort(":8089"),
-			WithServerHttpPort(":8081"),
-			WithLoggerLevel(logging.DebugLevel),
-			WithLabelManager(),
-			WithDiscover(mockDiscovery{}),
-		}
-		Run(&MockValidate{}, &MockReceive{}, optionfunc...)
-	})
-}
-
-func TestName(t *testing.T) {
-
+func ExampleRun() {
+	optionfunc := []OptionFunc{
+		WithServerRpcPort(":8089"),
+		WithServerHttpPort(":8081"),
+		WithLoggerLevel(logging.DebugLevel),
+		WithLabelManager(),
+		WithDiscover(mockDiscovery{}),
+	}
+	Run(&MockValidate{}, &MockReceive{}, optionfunc...)
 }
