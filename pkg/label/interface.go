@@ -13,6 +13,8 @@
 
 package label
 
+import "context"
+
 type TargetStatus int
 
 const (
@@ -29,7 +31,7 @@ type Parallel func() error
 
 // Manager Label管理器
 type Manager interface {
-	Run ()[] func()error
+	Run ()[] func(ctx context.Context)error
 
 	// AddClient  添加一个用户到Label服务中，需要指出具体某个tag ,如果tag 不存在需要创建出新的tag
 	// forClient 是需要用户将label 做一下本地保存，一个用户可以存储多个label，所以需要在用户操作的时候

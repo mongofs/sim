@@ -42,7 +42,6 @@ type Client interface {
 	// SetMessageType 设置用户接收消息的格式
 	SetMessageType(messageType MessageType)
 
-
 	// -----------------------tag --------------------
 
 	HaveTags(tags []string) bool
@@ -52,10 +51,7 @@ type Client interface {
 	DelTag(tag string)
 
 	RangeTag() (res []string)
-
 }
-
-
 
 type Cli struct {
 	Connect
@@ -70,9 +66,3 @@ func NewClient(w http.ResponseWriter, r *http.Request, closeSig chan<- string, t
 	res.Connect = conn
 	return res, nil
 }
-
-
-
-
-
-

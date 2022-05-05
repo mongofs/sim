@@ -34,7 +34,7 @@ const (
 	DefaultBroadCastBuffer    = 200
 
 	// PluginWTISupport 的参数支持
-	PluginWTISupport = false // 是否支持WTI 进行扩展
+	LabelManager = false // 是否支持WTI 进行扩展
 
 	// router http相关设置
 	DefaultRouterConnection  = "/conn"
@@ -59,7 +59,6 @@ type Options struct {
 
 	//ClientMessageType  用户发送的数据类型
 	ClientMessageType MessageType
-
 
 	// ====================================== Options for only example-side =======================
 
@@ -90,7 +89,7 @@ type Options struct {
 	BroadCastHandler int
 
 	//plugins
-	SupportPluginWTI bool // 是否支持wti插件
+	LabelManager bool // 是否支持标签管理器
 
 	Logger logging.Logger
 
@@ -121,7 +120,7 @@ func DefaultOption() *Options {
 		ServerHttpPort:     DefaultServerHttpPort,
 		BroadCastBuffer:    DefaultBroadCastBuffer,
 		BroadCastHandler:   DefaultBroadCastHandler,
-		SupportPluginWTI:   PluginWTISupport,
+		LabelManager:       LabelManager,
 
 		RouterValidateKey: DefaultRouterValidateKey,
 		RouterConnection:  DefaultRouterConnection,
@@ -189,7 +188,6 @@ func WithClientMessageType(ClientMessageType MessageType) OptionFunc {
 	}
 }
 
-
 func WithBucketSize(BucketSize int) OptionFunc {
 	return func(b *Options) {
 		b.BucketSize = BucketSize
@@ -209,9 +207,9 @@ func WithBroadCastHandler(BroadCastHandler int) OptionFunc {
 }
 
 //设置plugin内容
-func WithPluginsWTI() OptionFunc {
+func WithLabelManager() OptionFunc {
 	return func(b *Options) {
-		b.SupportPluginWTI = true
+		b.LabelManager = true
 	}
 }
 

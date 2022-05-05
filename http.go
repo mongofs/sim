@@ -14,6 +14,7 @@
 package sim
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -22,9 +23,9 @@ import (
 )
 
 type httpserver struct {
-	http        *http.ServeMux
-	port        string
-	validateKey string
+	http           *http.ServeMux
+	port           string
+	validateKey    string
 	validateRouter string
 
 	up      Upgrade
@@ -47,19 +48,19 @@ func (r *Response) SendJson() (int, error) {
 
 type Upgrade func(writer http.ResponseWriter, r *http.Request, token string) error
 
-func newHttpServer(validateKey,validateRouter, port string, up Upgrade, api API) *httpserver {
+func newHttpServer(validateKey, validateRouter, port string, up Upgrade, api API) *httpserver {
 	hs := &httpserver{
-		http:        http.NewServeMux(),
-		port:        port,
-		validateKey: validateKey,
+		http:           http.NewServeMux(),
+		port:           port,
+		validateKey:    validateKey,
 		validateRouter: validateRouter,
-		up:          up,
-		handler:     api,
+		up:             up,
+		handler:        api,
 	}
 	return hs
 }
 
-func (s *httpserver) Run() func()error {
+func (s *httpserver) Run() func(ctx context.Context) error {
 	s.initRouter()
 	return s.run
 }
@@ -94,10 +95,11 @@ func (s *httpserver) connection(writer http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *httpserver) run() error {
+func (s *httpserver) run(ctx context.Context) error {
 	listen, err := net.Listen("tcp", s.port)
+	defer listen.Close()
 	if err != nil {
-		logging.Infof("sim : occur error when  start HTTP example at %s ,err : %v", s.port,err.Error())
+		logging.Infof("sim : occur error when  start HTTP server at %s ,err : %v", s.port, err.Error())
 		return err
 	}
 	logging.Infof("sim : start HTTP example at %s ", s.port)

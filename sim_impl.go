@@ -30,13 +30,14 @@ import (
 )
 
 type sim struct {
-	http *httpserver
-	rpc *grpc.Server
+	http  *httpserver
+	rpc   *grpc.Server
 	label label.Manager
-	bs  []*bucket
-	ps  atomic.Int64
+	bs    []*bucket
+	ps    atomic.Int64
 
-	cancel func()
+	cancel context.CancelFunc
+	ctx    context.Context
 	opt    *Options
 }
 
@@ -79,33 +80,33 @@ func (s *sim) SendMsg(ctx context.Context, req *im.SendMsgReq) (*im.SendMsgResp,
 
 //
 
-func (s *sim) LabelList(ctx context.Context, req *im.LabelListReq) (*im.LabelListReply, error){
-	res := s.label.List(0,0)
+func (s *sim) LabelList(ctx context.Context, req *im.LabelListReq) (*im.LabelListReply, error) {
+	res := s.label.List(0, 0)
 	var result []*im.Info
-	for _,v := range res {
-		result = append(result,  &im.Info{Info: map[string]string{
-			"tag" : v.Name,
-			"online": strconv.Itoa(v.Online),
-			"limit": strconv.Itoa(v.Limit),
+	for _, v := range res {
+		result = append(result, &im.Info{Info: map[string]string{
+			"tag":        v.Name,
+			"online":     strconv.Itoa(v.Online),
+			"limit":      strconv.Itoa(v.Limit),
 			"createTime": strconv.Itoa(int(v.CreateTime)),
-			"status":strconv.Itoa(v.Status),
-			"change" : strconv.Itoa(v.Change),
-			"numG" : strconv.Itoa(v.NumG),
+			"status":     strconv.Itoa(v.Status),
+			"change":     strconv.Itoa(v.Change),
+			"numG":       strconv.Itoa(v.NumG),
 		}})
 	}
 	return &im.LabelListReply{
 		Count: int32(len(result)),
 		Info:  result,
-	},nil
+	}, nil
 }
-func (s *sim) LabelInfo(ctx context.Context, req *im.LabelInfoReq) (*im.LabelInfoReply, error){
+func (s *sim) LabelInfo(ctx context.Context, req *im.LabelInfoReq) (*im.LabelInfoReply, error) {
 	res, err := s.label.LabelInfo(req.Tag)
 	if err != nil {
 		return nil, err
 	}
 	var gInfos []*im.Info
 	for _, v := range res.GInfo {
-		gInfos = append(gInfos, &im.Info{Info:* v})
+		gInfos = append(gInfos, &im.Info{Info: *v})
 	}
 	result := &im.LabelInfoReply{
 		Tag:        res.Name,
@@ -118,7 +119,7 @@ func (s *sim) LabelInfo(ctx context.Context, req *im.LabelInfoReq) (*im.LabelInf
 	}
 	return result, nil
 }
-func (s *sim) BroadCastByLabel(ctx context.Context, req *im.BroadCastByLabelReq) (*im.BroadcastReply, error){
+func (s *sim) BroadCastByLabel(ctx context.Context, req *im.BroadCastByLabelReq) (*im.BroadcastReply, error) {
 	res, err := s.label.BroadCastByLabel(req.Data)
 	if err != nil {
 		return nil, err
@@ -126,7 +127,7 @@ func (s *sim) BroadCastByLabel(ctx context.Context, req *im.BroadCastByLabelReq)
 	result := &im.BroadcastReply{Fail: res}
 	return result, nil
 }
-func (s *sim) BroadCastByLabelWithInJoin(ctx context.Context, req *im.BroadCastByLabelWithInJoinReq) (*im.BroadcastReply, error){
+func (s *sim) BroadCastByLabelWithInJoin(ctx context.Context, req *im.BroadCastByLabelWithInJoinReq) (*im.BroadcastReply, error) {
 	res, err := s.label.BroadCastWithInnerJoinLabel(req.Data, req.Tags)
 	if err != nil {
 		return nil, err
@@ -135,9 +136,8 @@ func (s *sim) BroadCastByLabelWithInJoin(ctx context.Context, req *im.BroadCastB
 	return resutl, nil
 }
 
-
-func (s *sim) initHttp (){
-	s.http = newHttpServer(s.opt.RouterValidateKey,s.opt.RouterConnection,s.opt.ServerHttpPort,s.upgrade,s)
+func (s *sim) initHttp() {
+	s.http = newHttpServer(s.opt.RouterValidateKey, s.opt.RouterConnection, s.opt.ServerHttpPort, s.upgrade, s)
 }
 
 func (s *sim) bucket(token string) *bucket {
@@ -149,7 +149,7 @@ func (s *sim) Index(token string, size uint32) uint32 {
 	return cityhash.CityHash32([]byte(token), uint32(len(token))) % size
 }
 
-func (s *sim) upgrade(writer http.ResponseWriter, r *http.Request,token string)error {
+func (s *sim) upgrade(writer http.ResponseWriter, r *http.Request, token string) error {
 	// validate token
 	bs := s.bucket(token)
 	cli, err := bs.createConn(writer, r, token)
@@ -180,25 +180,34 @@ func (s *sim) handlerHealth(w http.ResponseWriter, r *http.Request) {
 	res.SendJson()
 }
 
-func (s *sim) monitorOnline() error {
+func (s *sim) monitorOnline(ctx context.Context) error {
 	var interval = 10
-	logging.Infof("sim : start monitor online example , interval is %v second", interval)
+	logging.Infof("sim : monitor of sim online  starting , interval is %v second", interval)
+	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+
 	for {
-		n := int64(0)
-		for _, bck := range s.bs {
-			n += bck.Online()
+		select {
+		case <-ticker.C:
+			n := int64(0)
+			for _, bck := range s.bs {
+				n += bck.Online()
+			}
+			s.ps.Store(n)
+		case <-ctx.Done():
+			goto loop
 		}
-		s.ps.Store(n)
-		time.Sleep(time.Duration(interval) * time.Second)
 	}
+loop:
+	logging.Infof("sim : monitor of sim online is closed  ")
 	return nil
 }
 
-func (s *sim) runGrpcServer() error {
+func (s *sim) runGrpcServer(ctx context.Context) error {
 	listen, err := net.Listen("tcp", s.opt.ServerRpcPort)
 	if err != nil {
 		return err
 	}
+	defer listen.Close()
 	logging.Infof("sim : start GRPC example at %s ", s.opt.ServerRpcPort)
 	if err := s.rpc.Serve(listen); err != nil {
 		return err
@@ -215,8 +224,8 @@ func (s *sim) handlerBroadCast(data []byte, ack bool) []string {
 }
 
 func (s *sim) close() error {
-	s.rpc.GracefulStop()
 	s.cancel()
+	s.rpc.GracefulStop()
 	logging.Infof("sim : server is closed ")
 	return nil
 }
@@ -230,8 +239,8 @@ func initSim(opts *Options) *sim {
 
 	// prepare buckets
 	b.bs = make([]*bucket, b.opt.ServerBucketNumber)
-	_, cancel := context.WithCancel(context.Background())
-	b.cancel = cancel
+	b.ctx, b.cancel = context.WithCancel(context.Background())
+
 	for i := 0; i < b.opt.ServerBucketNumber; i++ {
 		b.bs[i] = newBucket(b.opt)
 	}
@@ -250,4 +259,3 @@ func initSim(opts *Options) *sim {
 	logging.Infof("sim : INIT_VALIDATE_KEY is %s", b.opt.RouterValidateKey)
 	return b
 }
-

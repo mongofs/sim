@@ -17,7 +17,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"sim/pkg/logging"
 	"testing"
-
 )
 
 type MockReceive struct{}
@@ -41,7 +40,6 @@ func (m MockValidate) ValidateSuccess(cli Client) {
 }
 
 type mockDiscovery struct {
-
 }
 
 func (m mockDiscovery) Register() {
@@ -58,7 +56,7 @@ func TestRun(t *testing.T) {
 			WithServerRpcPort(":8089"),
 			WithServerHttpPort(":8081"),
 			WithLoggerLevel(logging.DebugLevel),
-			WithPluginsWTI(),
+			WithLabelManager(),
 			WithDiscover(mockDiscovery{}),
 		}
 		Run(&MockValidate{}, &MockReceive{}, optionfunc...)

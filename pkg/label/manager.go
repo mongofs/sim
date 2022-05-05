@@ -14,8 +14,10 @@
 package label
 
 import (
+	"context"
 	"math"
 	"sim/pkg/errors"
+	"sim/pkg/logging"
 	"sync"
 	"time"
 )
@@ -56,7 +58,7 @@ func NewManager() Manager {
 }
 
 // Run 将target的需要长时间运行的内容返回出去执行
-func (s *manager) Run() []func() error{
+func (s *manager) Run() []func(ctx context.Context) error{
 	return s.parallel()
 }
 
@@ -166,36 +168,46 @@ func (s *manager) broadcastByLabel(msg map[string][]byte) ([]string, error) {
 	return res, nil
 }
 
-func (s *manager) parallel()(res []func() error) {
+func (s *manager) parallel()(res []func(ctx context.Context) error) {
 	res = append(res, s.monitor, s.handleMonitor)
 	return
 }
 
-func (s *manager) monitor() error {
+func (s *manager) monitor(ctx context.Context) error {
+	logging.Infof("sim : monitor of label manager starting ")
+	ticker := time.NewTicker(time.Duration(s.watchTime) * time.Second)
 	for {
-		time.Sleep(time.Duration(s.watchTime) * time.Second)
-		s.rw.RLock()
-		for k, r := range s.mp {
-			st := r.Status()
-			switch st {
-			default:
-				continue
-			case TargetStatusShouldEXTENSION:
-				s.expansion <- r
-			case TargetStatusShouldReBalance:
-				s.balance <- r
-			case TargetStatusShouldSHRINKS:
-				s.shrinks <- r
-			case TargetStatusShouldDestroy:
-				delete(s.mp,k)
-				r.Destroy()
+		select {
+		case <- ticker.C:
+			s.rw.RLock()
+			for k, r := range s.mp {
+				st := r.Status()
+				switch st {
+				default:
+					continue
+				case TargetStatusShouldEXTENSION:
+					s.expansion <- r
+				case TargetStatusShouldReBalance:
+					s.balance <- r
+				case TargetStatusShouldSHRINKS:
+					s.shrinks <- r
+				case TargetStatusShouldDestroy:
+					delete(s.mp,k)
+					r.Destroy()
+				}
 			}
+			s.rw.RUnlock()
+		case <- ctx.Done():
+			goto loop
 		}
-		s.rw.RUnlock()
 	}
+	loop :
+	logging.Infof("sim : monitor of label manager Closed ")
+	return nil
 }
 
-func (s *manager) handleMonitor() error {
+func (s *manager) handleMonitor(ctx context.Context) error {
+	logging.Infof("sim : handleMonitor of label manager starting ")
 	for {
 		select {
 		case t := <-s.expansion:
@@ -204,8 +216,13 @@ func (s *manager) handleMonitor() error {
 			t.Shrinks()
 		case t := <-s.balance:
 			t.Balance()
+		case <- ctx.Done() :
+			goto loop
 		}
 	}
+	loop :
+	logging.Infof("sim : handleMonitor of label manager Closed ")
+	return nil
 }
 
 

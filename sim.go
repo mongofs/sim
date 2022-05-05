@@ -19,8 +19,8 @@ import (
 	"os"
 	"os/signal"
 	im "sim/api/v1"
-	"sim/pkg/logging"
 	"sim/pkg/label"
+	"sim/pkg/logging"
 	"syscall"
 )
 
@@ -39,8 +39,6 @@ type API interface {
 	BroadCastByLabel(context.Context, *im.BroadCastByLabelReq) (*im.BroadcastReply, error)
 	BroadCastByLabelWithInJoin(context.Context, *im.BroadCastByLabelWithInJoinReq) (*im.BroadcastReply, error)
 }
-
-
 
 // Discover 可以在服务启动停止的时候自动想注册中心进行注册和注销，这个实现是可选的，具体可
 // 查看option的参数，如果没有discover 就是一个单节点，也是可以启动。但是建议你在生产环境
@@ -68,32 +66,33 @@ type Receive interface {
 	Handle(conn Connect, data []byte)
 }
 
-
-
-func serverParallel(s *sim) <-chan error{
-	var prepareParallelFunc = []func()error{
+func serverParallel(s *sim) <-chan error {
+	var prepareParallelFunc = []func(ctx context.Context) error{
 		// 启用单独goroutine 进行监控
 		s.monitorOnline,
 		// 启用单独goroutine 进行运行
 		s.runGrpcServer,
 		s.http.Run(),
 	}
-	if s.opt.SupportPluginWTI {
+	if s.opt.LabelManager {
 		s.label = label.NewManager()
-		wtiParallel := s.label.Run()
-		prepareParallelFunc = append(prepareParallelFunc, wtiParallel...)
+		Parallel := s.label.Run()
+		prepareParallelFunc = append(prepareParallelFunc, Parallel...)
 	}
 	ch := make(chan error)
 	go func() {
-		ch <- parallel(prepareParallelFunc...)
+		ch <- parallel(s.ctx, prepareParallelFunc...)
 	}()
 	return ch
 }
 
-func parallel(parallels ...func()error) error {
+func parallel(ctx context.Context, parallels ...func(ctx context.Context) error) error {
 	wg := errgroup.Group{}
 	for _, v := range parallels {
-		wg.Go(v)
+		tev := v
+		wg.Go(func() error {
+			return tev(ctx)
+		})
 	}
 	return wg.Wait()
 }
@@ -112,27 +111,26 @@ func Run(validate Validate, receive Receive, opts ...OptionFunc) (err error) {
 		options.Logger = logger
 	}
 
-
 	// prepare the sim
 	sim := initSim(options)
 	defer sim.close()
-	ParallelChannel :=  serverParallel(sim)
-	if options.ServerDiscover !=nil {
-		 options.ServerDiscover.Register()
-		 logging.Infof("sim : start Discover.Register success")
-		 defer func() {
-			 options.ServerDiscover.Deregister()
-			 logging.Infof("sim : start Discover.Deregister success")
-		 }()
+	ParallelChannel := serverParallel(sim)
+	if options.ServerDiscover != nil {
+		options.ServerDiscover.Register()
+		logging.Infof("sim : start Discover.Register success")
+		defer func() {
+			options.ServerDiscover.Deregister()
+			logging.Infof("sim : start Discover.Deregister success")
+		}()
 	}
 
-	sigs := make(chan os.Signal,1)
+	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	select {
-	case err := <- ParallelChannel:
+	case err := <-ParallelChannel:
 		logging.Error(err)
-	case sig:= <- sigs:
-		logging.Infof("sim : close signal : %v",sig)
+	case sig := <-sigs:
+		logging.Infof("sim : close signal : %v", sig)
 		break
 	}
 	return

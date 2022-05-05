@@ -36,10 +36,10 @@ const (
 // 当前这个连接基于 github.com/gorilla/websocket
 type gorilla struct {
 	reader *http.Request
-	rw    sync.RWMutex
-	once  sync.Once
-	con   *websocket.Conn
-	token *string
+	rw     sync.RWMutex
+	once   sync.Once
+	con    *websocket.Conn
+	token  *string
 	// buffer 这里是用户进行设置缓冲区的，这里和websocket的缓冲区不同的是，这里的内容是单独
 	// 按照消息个数来缓冲的，而websocket是基于tcp的缓冲区进行字节数组缓冲，本质是不同
 	// 的概念，值得注意的是，slice是指针类型，意味着传输的内容是可以很大的，在chan层
@@ -73,7 +73,7 @@ type gorilla struct {
 func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.ResponseWriter, r *http.Request, handlerReceive Receive) (Connect, error) {
 	result := &gorilla{
 		once:          sync.Once{},
-		reader: r,
+		reader:        r,
 		con:           nil,
 		token:         token,
 		buffer:        make(chan []byte, option.ClientBufferSize),
@@ -94,11 +94,9 @@ func (c *gorilla) Identification() string {
 	return *c.token
 }
 
-
 func (c *gorilla) Request() *http.Request {
 	return c.reader
 }
-
 
 func (c *gorilla) Send(data []byte) error {
 	if len(c.buffer)*10 > cap(c.buffer)*7 {
@@ -149,14 +147,14 @@ func (c *gorilla) SetTag(tag string) error {
 		return err
 	}
 	if c.tags == nil {
-		c.tags = make(map[string]label.ForClient,3)
+		c.tags = make(map[string]label.ForClient, 3)
 	}
 	c.tags[tag] = tgAd
 	return nil
 }
 
 func (c *gorilla) DelTag(tag string) {
-	 c.clear(tag)
+	c.clear(tag)
 }
 
 func (c *gorilla) RangeTag() (res []string) {
@@ -218,16 +216,16 @@ func (c *gorilla) close(forRetry bool) {
 	})
 }
 
-func (c *gorilla) clear(tag ... string) {
+func (c *gorilla) clear(tag ...string) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
 	if len(tag) == 0 {
-		for k,v := range c.tags {
+		for k, v := range c.tags {
 			v.Delete([]string{c.Identification()})
-			delete(c.tags,k)
+			delete(c.tags, k)
 		}
-	}else{
-		for _,v := range tag {
+	} else {
+		for _, v := range tag {
 			if tar, ok := c.tags[v]; ok {
 				delete(c.tags, v)
 				tar.Delete([]string{c.Identification()})
