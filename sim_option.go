@@ -13,7 +13,7 @@
 
 package sim
 
-import "sim/pkg/logging"
+import "github.com/mongofs/sim/pkg/logging"
 
 const (
 	// ====================================== Options for only client-side =======================

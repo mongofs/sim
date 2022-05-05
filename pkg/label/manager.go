@@ -16,10 +16,11 @@ package label
 import (
 	"context"
 	"math"
-	"sim/pkg/errors"
-	"sim/pkg/logging"
 	"sync"
 	"time"
+
+	"github.com/mongofs/sim/pkg/errors"
+	"github.com/mongofs/sim/pkg/logging"
 )
 
 type manager struct {

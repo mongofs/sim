@@ -17,12 +17,12 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"sim/pkg/label"
 	"strconv"
 	"time"
 
-	im "sim/api/v1"
-	"sim/pkg/logging"
+	im "github.com/mongofs/sim/api/v1"
+	"github.com/mongofs/sim/pkg/label"
+	"github.com/mongofs/sim/pkg/logging"
 
 	"github.com/zhenjl/cityhash"
 	"go.uber.org/atomic"

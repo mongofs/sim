@@ -17,8 +17,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	im "sim/api/v1"
-	"sim/pkg/logging"
+
+	im "github.com/mongofs/sim/api/v1"
+	"github.com/mongofs/sim/pkg/logging"
 )
 
 // 这里原则是初始化路由

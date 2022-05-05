@@ -16,11 +16,11 @@ package sim
 import (
 	"context"
 	"net/http"
-	"sim/pkg/logging"
 	"sync"
 	"time"
 
-	"sim/pkg/errors"
+	"github.com/mongofs/sim/pkg/errors"
+	"github.com/mongofs/sim/pkg/logging"
 
 	"go.uber.org/atomic"
 )

@@ -15,15 +15,15 @@ package sim
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"net/http"
-	"sim/pkg/label"
 	"sync"
 	"time"
 
-	"sim/pkg/logging"
+	"github.com/mongofs/sim/pkg/label"
+	"github.com/mongofs/sim/pkg/logging"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 )
 
 type MessageType int

@@ -16,9 +16,10 @@ package label
 import (
 	"container/list"
 	"errors"
-	"sim/pkg/logging"
 	"sync"
 	"time"
+
+	"github.com/mongofs/sim/pkg/logging"
 )
 
 // label 是相同的标签的管理单元，相同的target都会放置到相同的

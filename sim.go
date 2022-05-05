@@ -15,13 +15,15 @@ package sim
 
 import (
 	"context"
-	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
-	im "sim/api/v1"
-	"sim/pkg/label"
-	"sim/pkg/logging"
 	"syscall"
+
+	"golang.org/x/sync/errgroup"
+
+	im "github.com/mongofs/sim/api/v1"
+	"github.com/mongofs/sim/pkg/label"
+	"github.com/mongofs/sim/pkg/logging"
 )
 
 //

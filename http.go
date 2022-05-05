@@ -18,8 +18,9 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
-	"sim/pkg/logging"
 	"time"
+
+	"github.com/mongofs/sim/pkg/logging"
 )
 
 type httpserver struct {
