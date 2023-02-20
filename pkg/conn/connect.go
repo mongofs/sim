@@ -11,9 +11,7 @@
  * limitations under the License.
  */
 
-package sim
-
-import "net/http"
+package conn
 
 //  Connect 目前暂时支持 "github.com/gorilla/websocket" ，后续笔者打算编写一个基于epoll+EL的一个
 //  网络模型，目前初步名称称为snetpoll，将websocket支持该模型，不过当下来说gorilla的包还是一个非常不错
@@ -21,13 +19,13 @@ import "net/http"
 //  切换底层支持的话会重新发版，也考虑通过参数控制让用户自行选择实现
 
 type Connect interface {
-	Identification() string
 
-	Request() *http.Request
+	// the connection
+	Identification() string
 
 	Send(data []byte) error
 
-	Close(forRetry bool) error
+	Close()
 
 	SetMessageType(messageType MessageType)
 
@@ -35,13 +33,4 @@ type Connect interface {
 
 	GetLastHeartBeatTime() int64
 
-	// -----------------------tag --------------------
-
-	HaveTags(tags []string) bool
-
-	SetTag(tag string) error
-
-	DelTag(tag string)
-
-	RangeTag() (res []string)
 }

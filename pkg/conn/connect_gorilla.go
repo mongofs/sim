@@ -10,8 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package sim
+package conn
 
 import (
 	"fmt"
@@ -19,27 +18,24 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mongofs/sim/pkg/label"
 	"github.com/mongofs/sim/pkg/logging"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 )
 
-type MessageType int
+type MessageType uint
 
 const (
 	MessageTypeText MessageType = iota + 1
 	MessageTypeBinary
 )
 
-// 当前这个连接基于 github.com/gorilla/websocket
-type gorilla struct {
-	reader *http.Request
-	rw     sync.RWMutex
-	once   sync.Once
-	con    *websocket.Conn
-	token  *string
+// This connection is upgrade of  github.com/gorilla/websocket
+type conn struct {
+	once           sync.Once
+	con            *websocket.Conn
+	identification string
 	// buffer 这里是用户进行设置缓冲区的，这里和websocket的缓冲区不同的是，这里的内容是单独
 	// 按照消息个数来缓冲的，而websocket是基于tcp的缓冲区进行字节数组缓冲，本质是不同
 	// 的概念，值得注意的是，slice是指针类型，意味着传输的内容是可以很大的，在chan层
@@ -65,23 +61,21 @@ type gorilla struct {
 	// 的时候尽量不要读取closeChan
 	closeChan   chan<- string
 	messageType MessageType // text /binary
-
-	// tags 这里是标签管理的地方
-	tags map[string]label.ForClient
 }
 
-func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.ResponseWriter, r *http.Request, handlerReceive Receive) (Connect, error) {
-	result := &gorilla{
+type Receive func(conn Connect, data []byte)
+
+func NewConn(Identification string, clientBuffer, ClientSendBuffer, ClientRecvBuffer int, messageType MessageType, sig chan<- string,
+	w http.ResponseWriter, r *http.Request, handlerReceive Receive) (Connect, error) {
+	result := &conn{
 		once:          sync.Once{},
-		reader:        r,
-		con:           nil,
-		token:         token,
-		buffer:        make(chan []byte, option.ClientBufferSize),
+		identification: Identification,
+		buffer:        make(chan []byte, clientBuffer),
 		heartBeatTime: time.Now().Unix(),
-		closeChan:     closeChan,
-		messageType:   option.ClientMessageType,
+		closeChan:     sig,
+		messageType:   messageType,
 	}
-	err := result.upgrade(w, r, option.ClientReaderBufferSize, option.ClientWriteBufferSize)
+	err := result.upgrade(w, r, ClientRecvBuffer, ClientSendBuffer)
 	if err != nil {
 		return nil, err
 	}
@@ -90,86 +84,44 @@ func NewGorilla(token *string, closeChan chan<- string, option *Options, w http.
 	return result, nil
 }
 
-func (c *gorilla) Identification() string {
-	return *c.token
+func (c *conn) Identification() string {
+	return c.identification
 }
 
-func (c *gorilla) Request() *http.Request {
-	return c.reader
-}
-
-func (c *gorilla) Send(data []byte) error {
+func (c *conn) Send(data []byte) error {
 	if len(c.buffer)*10 > cap(c.buffer)*7 {
 		// todo 这里处理方式展示不够优雅，用户可以根据自身业务情况处理
 		// 丢弃用户消息，// 此时表明用户网络处于非常差的情况，后续将兼容
 		// 延迟重发，不过需要引入新的中间件进行消息存储，对于不是强一致性
 		// 的场景建议不用存储，在我实际公司业务，如果到这一步了就会让用户
 		// 断开连接，等用户网络好后先通过api同步数据
-		return errors.New(fmt.Sprintf("user buffer is %d ,but the length of content is %d", cap(c.buffer), len(c.buffer)))
+		return errors.New(fmt.Sprintf("sim : user buffer is %d ,but the "+
+			"length of content is %d", cap(c.buffer), len(c.buffer)))
 	}
 	c.buffer <- data
 	return nil
 }
 
-func (c *gorilla) Close(retry bool) error {
-	c.close(retry)
-	return nil
+func (c *conn) Close() {
+	c.close(false)
 }
 
-func (c *gorilla) SetMessageType(messageType MessageType) {
+func (c *conn) SetMessageType(messageType MessageType) {
 	c.messageType = messageType
 }
 
-func (c *gorilla) ReFlushHeartBeatTime() {
+func (c *conn) ReFlushHeartBeatTime() {
 	c.heartBeatTime = time.Now().Unix()
 }
 
-func (c *gorilla) GetLastHeartBeatTime() int64 {
+func (c *conn) GetLastHeartBeatTime() int64 {
 	return c.heartBeatTime
 }
 
-func (c *gorilla) HaveTags(tags []string) bool {
-	c.rw.RLock()
-	defer c.rw.RUnlock()
-	for _, tag := range tags {
-		if _, ok := c.tags[tag]; !ok {
-			return false
-		}
-	}
-	return true
-}
-
-func (c *gorilla) SetTag(tag string) error {
-	c.rw.Lock()
-	defer c.rw.Unlock()
-	tgAd, err := label.Add(tag, c)
-	if err != nil {
-		return err
-	}
-	if c.tags == nil {
-		c.tags = make(map[string]label.ForClient, 3)
-	}
-	c.tags[tag] = tgAd
-	return nil
-}
-
-func (c *gorilla) DelTag(tag string) {
-	c.clear(tag)
-}
-
-func (c *gorilla) RangeTag() (res []string) {
-	c.rw.RLock()
-	defer c.rw.RUnlock()
-	for k, _ := range c.tags {
-		res = append(res, k)
-	}
-	return res
-}
-
-func (c *gorilla) monitorSend() {
+func (c *conn) monitorSend() {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Errorf("sim : monitorSend 发生panic %v", err)
+			logging.Errorf("sim :  occurred panic when call monitorSend %v", err)
 		}
 	}()
 	for {
@@ -181,17 +133,18 @@ func (c *gorilla) monitorSend() {
 		}
 		spendTime := time.Since(startTime)
 		if spendTime > time.Duration(2)*time.Second {
-			logging.Warnf("sim : token '%v'网络状态不好，消息写入通道时间过长 :'%v'", c.token, spendTime)
+			logging.Warnf("sim : the situation of net is bad ,"+
+				" Identification is '%v':'%v'", c.Identification(), spendTime)
 		}
 	}
 loop:
 	c.close(false)
 }
 
-func (c *gorilla) monitorReceive(handleReceive Receive) {
+func (c *conn) monitorReceive(handleReceive Receive) {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Errorf("sim : monitorReceive 发生panic %v", err)
+			logging.Errorf("sim : occurred panic when receive content:  %v", err)
 		}
 	}()
 	for {
@@ -199,42 +152,23 @@ func (c *gorilla) monitorReceive(handleReceive Receive) {
 		if err != nil {
 			goto loop
 		}
-		handleReceive.Handle(c, data)
+		handleReceive(c, data)
 	}
 loop:
 	c.close(false)
 }
 
-func (c *gorilla) close(forRetry bool) {
+func (c *conn) close(forRetry bool) {
 	c.once.Do(func() {
 		if !forRetry {
-			c.closeChan <- *c.token
+			c.closeChan <- c.Identification()
 		}
 		c.con.Close()
-		c.clear()
-		logging.Infof("sim : token %v 正常下线", *c.token)
+		logging.Infof("sim : Identification ' %v ' out off the line ", c.Identification())
 	})
 }
 
-func (c *gorilla) clear(tag ...string) {
-	c.rw.Lock()
-	defer c.rw.Unlock()
-	if len(tag) == 0 {
-		for k, v := range c.tags {
-			v.Delete([]string{c.Identification()})
-			delete(c.tags, k)
-		}
-	} else {
-		for _, v := range tag {
-			if tar, ok := c.tags[v]; ok {
-				delete(c.tags, v)
-				tar.Delete([]string{c.Identification()})
-			}
-		}
-	}
-}
-
-func (c *gorilla) upgrade(w http.ResponseWriter, r *http.Request, readerSize, writeSize int) error {
+func (c *conn) upgrade(w http.ResponseWriter, r *http.Request, readerSize, writeSize int) error {
 	conn, err := (&websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true

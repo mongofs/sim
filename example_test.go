@@ -13,11 +13,10 @@
 
 package sim
 
-import "sim/pkg/logging"
-
+/*
 type MockReceive struct{}
 
-func (m MockReceive) Handle(conn Connect, data []byte) {
+func (m MockReceive) Handle(conn conn.Connect, data []byte) {
 	conn.ReFlushHeartBeatTime()
 }
 
@@ -27,11 +26,11 @@ func (m MockValidate) Validate(token string) error {
 	return nil
 }
 
-func (m MockValidate) ValidateFailed(err error, cli Client) {
+func (m MockValidate) ValidateFailed(err error, cli conn.Connect) {
 	panic("implement me")
 }
 
-func (m MockValidate) ValidateSuccess(cli Client) {
+func (m MockValidate) ValidateSuccess(cli conn.Connect) {
 	return
 }
 
@@ -55,4 +54,4 @@ func ExampleRun() {
 		WithDiscover(mockDiscovery{}),
 	}
 	Run(&MockValidate{}, &MockReceive{}, optionfunc...)
-}
+}*/

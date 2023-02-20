@@ -15,143 +15,144 @@ package sim
 
 import (
 	"context"
-	"net/http"
+	"github.com/pkg/errors"
+	"strconv"
 	"sync"
 	"time"
 
-	"github.com/mongofs/sim/pkg/errors"
+	"github.com/mongofs/sim/pkg/conn"
 	"github.com/mongofs/sim/pkg/logging"
-
 	"go.uber.org/atomic"
 )
 
+type bucketInterface interface {
+	// you can register the user to the bucket set
+	Register(client conn.Connect) (string,int64,error)
+
+	// you can offline the user in anytime
+	Offline(identification string)
+
+	// send message to users , if empty of users set ,will send message to all users
+	SendMessage(message []byte, users ...string /* if no param , it will use broadcast */)
+
+	// return the signal channel , you can use the channel to notify the bucket
+	// uses is offline , and delete the users' identification
+	SignalChannel() chan<- string
+
+	Count() int
+}
+
 type bucket struct {
+
+	id string
 	rw sync.RWMutex
-
-	// Number of people
-	np *atomic.Int64
-
+	// Element Number
+	np atomic.Int64
 	// users set
-	clis map[string]Client
-
-	// User offline notification
+	users map[string]conn.Connect
+	// Here is  different point you need pay attention
+	// the close signal received by component that is connection
+	// so we need use channel to inform bucket that user is out of line
 	closeSig chan string
-
 	ctx context.Context
-
 	callback func()
-
-	// monitorHeartbeat  监控心跳的方法，需要外部传入，不传入默认是不存在的，但是为了保障连接的高可用性
-	// 在服务启动的时候是一个必传参，monitorHeartbeat是一个阻塞的方法，在bucket启动的时候进行赋值
-	// 建议这种写法
-	//	for {
-	//		cancelCli := []Client{}
-	//		now := time.Now().Unix()
-	//		b.rw.Lock()
-	//		for _, cli := range b.cli {
-	//
-	//			interval := now - cli.LastHeartBeat()
-	//
-	//			if interval < 2*int64(b.opts.ClientHeartBeatInterval) {
-	//				continue
-	//			}
-	//			cancelCli = append(cancelCli, cli)
-	//		}
-	//		b.rw.Unlock()
-	//		for _, cancel := range cancelCli {
-	//			cancel.Offline()
-	//		}
-	//
-	//		time.Sleep(10 * time.Second)
-	//	}
-
 	opts *Options
 }
 
-func newBucket(option *Options) *bucket {
+func NewBucket(option *Options, i int ) *bucket {
 	res := &bucket{
+		id : "bucket_" + strconv.Itoa(i),
 		rw:       sync.RWMutex{},
-		np:       &atomic.Int64{},
+		np:       atomic.Int64{},
 		closeSig: make(chan string),
 		opts:     option,
 	}
-	res.clis = make(map[string]Client, res.opts.BucketSize)
-	res.start()
+	res.users = make(map[string]conn.Connect, res.opts.BucketSize)
+	go res.monitorDelChannel()
+	go res.keepAlive()
 	return res
 }
 
-func (h *bucket) createConn(w http.ResponseWriter, r *http.Request, token string) (Client, error) {
-	// 这里主要原因需要将bucket的参数传出去
-	return NewClient(w, r, h.closeSig, &token, h.opts)
-}
-
-func (h *bucket) Online() int64 {
-	return h.np.Load()
-}
-
-func (h *bucket) OffLine(token string) {
+func (h *bucket) Offline(identification string) {
 	h.rw.RLock()
-	cli, ok := h.clis[token]
+	cli, ok := h.users[identification]
 	h.rw.RUnlock()
 	if ok {
-		cli.Close(false)
+		cli.Close()
 	}
 }
 
-func (h *bucket) Register(cli Client, token string) error {
+func (h *bucket) Register(cli conn.Connect) (string,int64,error) {
 	if cli == nil {
-		return errors.ErrCliISNil
+		return "",0,errors.New("sim : the obj of cli is nil ")
 	}
 	h.rw.Lock()
 	defer h.rw.Unlock()
-	old, ok := h.clis[token]
+	old, ok := h.users[cli.Identification()]
 	if ok {
-		old.Close(true)
+		old.Close()
 	}
-	h.clis[token] = cli
+	h.users[cli.Identification()] = cli
 	h.np.Add(1)
-	return nil
+	return h.id,h.np.Load(),nil
 }
 
-func (h *bucket) send(data []byte, token string, Ack bool) error {
-	h.rw.RLock()
-	cli, ok := h.clis[token]
-	h.rw.RUnlock()
-	if !ok { //用户不在线
-		return errors.ErrCliISNil
-	} else {
-		return cli.Send(data)
+func (h *bucket) SendMessage(message []byte, users ...string /* if no param , it will use broadcast */) {
+	if len(users)-1 >= 0 {
+		for _, user := range users {
+			h.send(message, user, false)
+		}
+		return
 	}
+	h.broadCast(message, false)
 }
 
-func (h *bucket) broadCast(data []byte, Ack bool) []string {
+func (h *bucket) SignalChannel() chan<- string {
+	return h.closeSig
+}
+
+func (h *bucket) Count() int {
 	h.rw.RLock()
-	var res []string
-	for _, cli := range h.clis {
+	defer h.rw.RUnlock()
+	return len(h.users)
+}
+
+// this function need a lot of  logs
+func (h *bucket) send(data []byte, token string, Ack bool) {
+	h.rw.RLock()
+	cli, ok := h.users[token]
+	h.rw.RUnlock()
+	if !ok { // user is not online
+		return
+	} else {
+		err := cli.Send(data)
+		// todo
+		logging.Error(err)
+	}
+	return
+}
+
+func (h *bucket) broadCast(data []byte, Ack bool) {
+	h.rw.RLock()
+	for _, cli := range h.users {
 		err := cli.Send(data)
 		if err != nil {
-			res = append(res, cli.Identification())
+			// todo
 			logging.Error(err)
 			continue
 		}
 	}
 	h.rw.RUnlock()
-	return res
 }
 
-func (h *bucket) start() {
-	go h.monitor()
-	go h.keepAlive()
-}
-
-func (h *bucket) delUser(token string) {
+func (h *bucket) delUser(identification string) {
 	h.rw.Lock()
 	defer h.rw.Unlock()
-	_, ok := h.clis[token]
+	_, ok := h.users[identification]
 	if !ok {
 		return
 	}
-	delete(h.clis, token)
+	delete(h.users, identification)
 	//更新在线用户数量
 	h.np.Add(-1)
 
@@ -160,7 +161,9 @@ func (h *bucket) delUser(token string) {
 	}
 }
 
-func (h *bucket) monitor() {
+// To monitor the whole bucket
+// run in a goroutine
+func (h *bucket) monitorDelChannel() {
 	if h.ctx != nil {
 		for {
 			select {
@@ -179,22 +182,18 @@ func (h *bucket) monitor() {
 	}
 }
 
-// keepAlive 处理未及时心跳的，目前还未想到很好的方式来讲内部变量交给调用者
-// 使用，所以这里暂时还是需要用户了解我内部的心跳规则，后续可能使用range方式
-// 将本地变量通过通道传出来，但是目前这种设想会增加调用者心智负担，暂时在更新
-// 2.0 版本之前不考虑将心跳迁移出来
+// To keepAlive the whole bucket
+// run in a goroutine
 func (h *bucket) keepAlive() {
 	if h.opts.ClientHeartBeatInterval == 0 {
 		return
 	}
 	for {
-		var cancelCli []Client
+		var cancelCli []conn.Connect
 		now := time.Now().Unix()
 		h.rw.Lock()
-		for _, cli := range h.clis {
-
+		for _, cli := range h.users {
 			inter := now - cli.GetLastHeartBeatTime()
-
 			if inter < 2*int64(h.opts.ClientHeartBeatInterval) {
 				continue
 			}
@@ -202,8 +201,10 @@ func (h *bucket) keepAlive() {
 		}
 		h.rw.Unlock()
 		for _, cancel := range cancelCli {
-			cancel.Close(false)
+			cancel.Close()
 		}
 		time.Sleep(10 * time.Second)
 	}
 }
+
+
