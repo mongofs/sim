@@ -98,8 +98,7 @@ func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
 	}
 	bs := s.bucket(identification)
 	sig := bs.SignalChannel()
-	cli, err := conn.NewConn(identification, s.opt.ClientBufferSize, s.opt.ClientWriteBufferSize,
-		s.opt.ClientReaderBufferSize, s.opt.ClientMessageType, sig, w, r, s.opt.hooker.HandleReceive)
+	cli, err := conn.NewConn(identification, sig, w, r, s.opt.hooker.HandleReceive)
 	if err != nil {
 		return err
 	}

@@ -24,13 +24,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type MessageType uint
-
-const (
-	MessageTypeText MessageType = iota + 1
-	MessageTypeBinary
-)
-
 // This connection is upgrade of  github.com/gorilla/websocket
 type conn struct {
 	once           sync.Once
@@ -65,22 +58,21 @@ type conn struct {
 
 type Receive func(conn Connect, data []byte)
 
-func NewConn(Identification string, clientBuffer, ClientSendBuffer, ClientRecvBuffer int, messageType MessageType, sig chan<- string,
-	w http.ResponseWriter, r *http.Request, handlerReceive Receive) (Connect, error) {
+func NewConn(Id string, sig chan<- string, w http.ResponseWriter, r *http.Request, Receive Receive) (Connect, error) {
 	result := &conn{
-		once:          sync.Once{},
-		identification: Identification,
-		buffer:        make(chan []byte, clientBuffer),
-		heartBeatTime: time.Now().Unix(),
-		closeChan:     sig,
-		messageType:   messageType,
+		once:           sync.Once{},
+		identification: Id,
+		buffer:         make(chan []byte, ),
+		heartBeatTime:  time.Now().Unix(),
+		closeChan:      sig,
+		messageType:    userOption.MessageType,
 	}
-	err := result.upgrade(w, r, ClientRecvBuffer, ClientSendBuffer)
+	err := result.upgrade(w, r, userOption.ConnectionReadBuffer, userOption.ConnectionWriteBuffer)
 	if err != nil {
 		return nil, err
 	}
 	go result.monitorSend()
-	go result.monitorReceive(handlerReceive)
+	go result.monitorReceive(Receive)
 	return result, nil
 }
 

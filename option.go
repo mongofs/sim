@@ -20,36 +20,19 @@ import (
 )
 
 const (
-	// ====================================== Options for only client-side =======================
-
 	DefaultClientHeartBeatInterval = 120
-	DefaultClientReaderBufferSize  = 1 << 10 // 1024
-	DefaultClientWriteBufferSize   = 1 << 10 // 1024
-	DefaultClientBufferSize        = 8
-	DefaultClientMessageType       = 1
-
-	// ====================================== Options for only server-side =======================
-
-	DefaultBucketSize         = 1 << 8 // 256
-	DefaultServerBucketNumber = 1 << 5 // 32
+	DefaultBucketSize              = 1 << 8 // 256
+	DefaultServerBucketNumber      = 1 << 5 // 32
 )
 
 type Options struct {
-	// ====================================== Options for only client-side =======================
-
-	ClientHeartBeatInterval int              // ClientHeartBeatInterval 用户的心跳间隔时间
-	ClientReaderBufferSize  int              // ClientReaderBufferSize 用户连接读取buffer
-	ClientWriteBufferSize   int              // ClientWriteBufferSize 用户连接写入buffer
-	ClientBufferSize        int              // ClientBufferSize 用户应用层buffer
-	ClientMessageType       conn.MessageType //ClientMessageType  用户发送的数据类型
-
-	// ====================================== Options for only server-side =======================
-
-	BucketSize         int            // BucketSize 每个bucket初始值
-	ServerBucketNumber int            // ServerBucketNumber 预计单机分成多少个bucket
-	Logger             logging.Logger // Logger 设置logger
-	LogPath            string         // LogPath 设置logger path
-	LogLevel           logging.Level  // LogLevel 设置logger level
+	ClientHeartBeatInterval int // ClientHeartBeatInterval 用户的心跳间隔时间
+	Connection              *conn.Option
+	BucketSize              int            // BucketSize 每个bucket初始值
+	ServerBucketNumber      int            // ServerBucketNumber 预计单机分成多少个bucket
+	Logger                  logging.Logger // Logger 设置logger
+	LogPath                 string         // LogPath 设置logger path
+	LogLevel                logging.Level  // LogLevel 设置logger level
 
 	// ====================================== Option for hard code ===============================
 	ServerDiscover Discover // ServerDiscover 进行服务的发现注册，支持多部署能力
@@ -87,10 +70,7 @@ func DefaultOption() *Options {
 	return &Options{
 		// client
 		ClientHeartBeatInterval: DefaultClientHeartBeatInterval,
-		ClientReaderBufferSize:  DefaultClientReaderBufferSize,
-		ClientWriteBufferSize:   DefaultClientWriteBufferSize,
-		ClientBufferSize:        DefaultClientBufferSize,
-		ClientMessageType:       DefaultClientMessageType,
+		Connection:              conn.DefaultOption(),
 		// server
 		BucketSize:         DefaultBucketSize,
 		ServerBucketNumber: DefaultServerBucketNumber,
@@ -120,27 +100,9 @@ func WithClientHeartBeatInterval(ClientHeartBeatInterval int) OptionFunc {
 	}
 }
 
-func WithClientReaderBufferSize(ClientReaderBufferSize int) OptionFunc {
+func WithConnectionOption(option *conn.Option) OptionFunc {
 	return func(b *Options) {
-		b.ClientReaderBufferSize = ClientReaderBufferSize
-	}
-}
-
-func WithClientWriteBufferSize(ClientWriteBufferSize int) OptionFunc {
-	return func(b *Options) {
-		b.ClientWriteBufferSize = ClientWriteBufferSize
-	}
-}
-
-func WithClientBufferSize(ClientBufferSize int) OptionFunc {
-	return func(b *Options) {
-		b.ClientBufferSize = ClientBufferSize
-	}
-}
-
-func WithClientMessageType(ClientMessageType conn.MessageType) OptionFunc {
-	return func(b *Options) {
-		b.ClientMessageType = ClientMessageType
+		b.Connection= option
 	}
 }
 
