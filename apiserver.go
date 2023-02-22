@@ -15,32 +15,28 @@ package sim
 import (
 	"context"
 	"errors"
-	"net/http"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
-
 	"github.com/mongofs/sim/pkg/conn"
 	"github.com/mongofs/sim/pkg/logging"
 	"go.uber.org/atomic"
+	"net/http"
+	"sync"
+	"time"
 )
 
 const (
 	RunStatusRunning = 1 + iota
 	RunStatusStopped
-
 )
 
 type sim struct {
 	// this is the slice of bucket , the bucket implement you can see ./bucket.go
 	// or github/mongofs/sim/bucket.go . for avoid the big locker , the specific
 	// implement use hash crc13 , so you don't worry about the matter of performance
-	bs     []bucketInterface
+	bs []bucketInterface
 
 	// this is the counter of online User, there have a goroutine to provide the
 	// precision of online people
-	num     atomic.Int64
+	num atomic.Int64
 
 	// this is function to notify all goroutine exit
 	cancel context.CancelFunc
@@ -51,7 +47,7 @@ type sim struct {
 
 	// this is the option about sim ,you can see ./option.go or github.com/mongofs/sim/option.go
 	// you can use the function provided by option.go to set the parameters
-	opt    *Options
+	opt *Options
 }
 
 var (
@@ -65,14 +61,12 @@ var (
 	// make sure the resource  exist
 	errInstanceIsNotExist = errors.New("the instance is not existed ")
 	// the server is not Running
-	errServerIsNotRunning =errors.New("the server is not running ")
-	errServerIsRunning =errors.New("the server is  running ")
+	errServerIsNotRunning = errors.New("the server is not running ")
+	errServerIsRunning    = errors.New("the server is  running ")
 
 	// hook is nil
 	errHookIsNil = errors.New("hook is nil ")
-
 )
-
 
 func NewSIMServer(hooker Hooker, opts ...OptionFunc) error {
 	if hooker == nil {
@@ -97,7 +91,7 @@ func NewSIMServer(hooker Hooker, opts ...OptionFunc) error {
 
 	b := &sim{
 		num:  atomic.Int64{},
-		opt: options,
+		opt:  options,
 		stat: RunStatusStopped,
 	}
 	b.num.Store(0)
@@ -142,8 +136,20 @@ func Upgrade(w http.ResponseWriter, r *http.Request) error {
 	return stalk.upgrade(w, r)
 }
 
-type HandleUpgrade func(w http.ResponseWriter, r *http.Request) error
+func Stop() error {
+	if stalk == nil {
+		return errInstanceIsNotExist
+	}
+	if stalk.stat != RunStatusRunning {
+		// that is mean the sim not run
+		return errServerIsNotRunning
+	}
+	stalk.close()
+	time.Sleep(200 * time.Millisecond)
+	return nil
+}
 
+type HandleUpgrade func(w http.ResponseWriter, r *http.Request) error
 
 func (s *sim) run() error {
 	if s.opt.ServerDiscover != nil {
@@ -154,22 +160,23 @@ func (s *sim) run() error {
 	}
 
 	parallelTask, finishChannel := s.Parallel()
-	sigs := make(chan os.Signal, 1)
 	s.stat = RunStatusRunning
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	for {
-		select {
-		case <-finishChannel:
-			logging.Infof("sim : exit -1 ")
-			return nil
-		case finishMark := <-parallelTask:
-			logging.Infof("sim : %v parallel task is out ", finishMark)
-		case <-sigs:
-			s.close()
+
+	go func() {
+		// monitor the channel and log the out information
+		for {
+			select {
+			case <-finishChannel:
+				logging.Infof("sim : exit -1 ")
+				return
+			case finishMark := <-parallelTask:
+				logging.Infof("sim : %v parallel task is out ", finishMark)
+			}
 		}
-	}
+	}()
 	return nil
 }
+
 func (s *sim) online() int {
 	return 1
 }

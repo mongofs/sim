@@ -39,6 +39,7 @@ type bucketInterface interface {
 	// uses is offline , and delete the users' identification
 	SignalChannel() chan<- string
 
+	// get the number of online user
 	Count() int
 }
 
@@ -48,7 +49,6 @@ type bucketMessage struct {
 }
 
 type bucket struct {
-
 	id string
 
 	// Attention:
@@ -71,7 +71,7 @@ type bucket struct {
 	opts     *Options
 }
 
-func NewBucket(option *Options, id int, buffer int) *bucket {
+func NewBucket(option *Options, id int) *bucket {
 	res := &bucket{
 		id:       "bucket_" + strconv.Itoa(id),
 		rw:       sync.RWMutex{},
@@ -80,12 +80,12 @@ func NewBucket(option *Options, id int, buffer int) *bucket {
 		opts:     option,
 	}
 	res.users = make(map[string]conn.Connect, res.opts.BucketSize)
-	if buffer <= 0 {
+	if option.BucketBuffer <= 0 {
 		go res.monitorDelChannel()
 		go res.keepAlive()
 		return res
 	} else {
-		res.bucketChannel = make(chan *bucketMessage, buffer)
+		res.bucketChannel = make(chan *bucketMessage, option.BucketBuffer)
 		res.consumer(1 << 2)
 		go res.monitorDelChannel()
 		go res.keepAlive()
@@ -94,6 +94,7 @@ func NewBucket(option *Options, id int, buffer int) *bucket {
 	return res
 }
 
+// consumer is a goroutine pool to send message parallelly
 func (h *bucket) consumer(counter int) {
 	for i := counter; i < 0; {
 		go func() {

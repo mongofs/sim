@@ -20,19 +20,23 @@ import (
 )
 
 const (
-	DefaultClientHeartBeatInterval = 120
-	DefaultBucketSize              = 1 << 8 // 256
-	DefaultServerBucketNumber      = 1 << 5 // 32
+	DefaultClientHeartBeatInterval    = 120
+	DefaultBucketSize                 = 1 << 9 // 512
+	DefaultServerBucketNumber         = 1 << 4 // 16
+	DefaultBucketBuffer               = 1 << 5 // 32
+	DefaultBucketSendMessageGoroutine = 1 << 2 // 4
 )
 
 type Options struct {
-	ClientHeartBeatInterval int // ClientHeartBeatInterval 用户的心跳间隔时间
-	Connection              *conn.Option
-	BucketSize              int            // BucketSize 每个bucket初始值
-	ServerBucketNumber      int            // ServerBucketNumber 预计单机分成多少个bucket
-	Logger                  logging.Logger // Logger 设置logger
-	LogPath                 string         // LogPath 设置logger path
-	LogLevel                logging.Level  // LogLevel 设置logger level
+	ClientHeartBeatInterval    int // ClientHeartBeatInterval 用户的心跳间隔时间
+	Connection                 *conn.Option
+	BucketSize                 int            // BucketSize 每个bucket初始值
+	BucketBuffer               int            // BucketBuffer bucket是否支持并发下发数据，实现原理就是使用携程池进行数据下发，
+	BucketSendMessageGoroutine int            // BucketSendMessageGoroutine 这个参数要生效必须看bucket buffer ，只有支持buffer才有效
+	ServerBucketNumber         int            // ServerBucketNumber 预计单机分成多少个bucket
+	Logger                     logging.Logger // Logger 设置logger
+	LogPath                    string         // LogPath 设置logger path
+	LogLevel                   logging.Level  // LogLevel 设置logger level
 
 	// ====================================== Option for hard code ===============================
 	ServerDiscover Discover // ServerDiscover 进行服务的发现注册，支持多部署能力
@@ -72,8 +76,10 @@ func DefaultOption() *Options {
 		ClientHeartBeatInterval: DefaultClientHeartBeatInterval,
 		Connection:              conn.DefaultOption(),
 		// server
-		BucketSize:         DefaultBucketSize,
-		ServerBucketNumber: DefaultServerBucketNumber,
+		BucketSize:                 DefaultBucketSize,
+		BucketBuffer:               DefaultBucketBuffer,
+		BucketSendMessageGoroutine: DefaultBucketSendMessageGoroutine,
+		ServerBucketNumber:         DefaultServerBucketNumber,
 	}
 }
 
@@ -102,13 +108,19 @@ func WithClientHeartBeatInterval(ClientHeartBeatInterval int) OptionFunc {
 
 func WithConnectionOption(option *conn.Option) OptionFunc {
 	return func(b *Options) {
-		b.Connection= option
+		b.Connection = option
 	}
 }
 
 func WithBucketSize(BucketSize int) OptionFunc {
 	return func(b *Options) {
 		b.BucketSize = BucketSize
+	}
+}
+
+func WithBucketBuffer(BucketBuffer int) OptionFunc {
+	return func(b *Options) {
+		b.BucketBuffer = BucketBuffer
 	}
 }
 

@@ -4,25 +4,15 @@ import (
 	"fmt"
 	"github.com/mongofs/sim"
 	"github.com/mongofs/sim/pkg/conn"
+	"github.com/mongofs/sim/pkg/logging"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 type talk struct {
-	im   sim.ApiServer
-	http * httpserver
-}
-
-func NewTalk() *talk {
-	hk := &hooker{}
-	im, err := sim.NewSIM(hk)
-	if err != nil {
-		panic(err)
-	}
-	ht := NewHTTP()
-	return &talk{
-		im:   im,
-		http: ht,
-	}
+	http *httpserver
 }
 
 type hooker struct {
@@ -41,27 +31,39 @@ func (h hooker) ValidateSuccess(cli conn.Connect) {
 }
 
 func (h hooker) HandleReceive(conn conn.Connect, data []byte) {
+	fmt.Println(string(data))
 	return
 }
 
 func (h hooker) IdentificationHook(w http.ResponseWriter, r *http.Request) (string, error) {
-	return r.Form.Get("token"),nil
+	return r.Form.Get("token"), nil
 
 }
 
+func main() {
+	sim.NewSIMServer(hooker{})
+	tk := &talk{http: NewHTTP()}
 
-func main(){
-	tk := NewTalk()
+	if err := sim.Run(); err != nil {
+		panic(err)
+	}
+
 	go func() {
-		err := tk.im.Run()
-		if err !=nil {
+		err := tk.http.Run(sim.Upgrade)
+		fmt.Println("outttt")
+		panic(err)
+	}()
+	sigs := make(chan os.Signal, 1)
+
+	// Free up resources by monitoring server interrupt to instead of killing the process id
+	// graceful shutdown
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	select {
+	case sig := <-sigs:
+		logging.Infof("sim : close signal : %v", sig)
+		if err := sim.Stop(); err != nil {
 			panic(err)
 		}
-	}()
-
-
-	err := tk.http.Run(tk.im.Upgrade)
-	fmt.Println(err)
-	panic(err)
-
+		break
+	}
 }

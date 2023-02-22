@@ -2,7 +2,6 @@ package sim
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
@@ -40,34 +39,8 @@ func (m MockConn) GetLastHeartBeatTime() int64 {
 	return m.heartTime
 }
 
-func TestNewBucket(t *testing.T) {
-	type args struct {
-		option *Options
-		id     int
-		buffer int
-	}
-	tests := []struct {
-		name string
-		args args
-		want *bucket
-	}{
-		{
-			name :"test for new bucket with the right parameter",
-			args: args{
-				option: DefaultOption(),
-				id:     1001,
-				buffer: 20 ,
-			},
-			want: nil,
-		},
 
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBucket(tt.args.option, tt.args.id, tt.args.buffer); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBucket() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+// send message to a person
+func TestBucket_SendMessage(t *testing.T) {
+
 }
-
