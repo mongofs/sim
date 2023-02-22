@@ -71,13 +71,14 @@ type bucket struct {
 	opts     *Options
 }
 
-func NewBucket(option *Options, id int) *bucket {
+func NewBucket(option *Options, id int, ctx context.Context) *bucket {
 	res := &bucket{
 		id:       "bucket_" + strconv.Itoa(id),
 		rw:       sync.RWMutex{},
 		np:       atomic.Int64{},
 		closeSig: make(chan string),
 		opts:     option,
+		ctx: ctx,
 	}
 	res.users = make(map[string]conn.Connect, res.opts.BucketSize)
 	if option.BucketBuffer <= 0 {
@@ -96,12 +97,13 @@ func NewBucket(option *Options, id int) *bucket {
 
 // consumer is a goroutine pool to send message parallelly
 func (h *bucket) consumer(counter int) {
-	for i := counter; i < 0; {
+	for i := 0; i < counter;i++ {
 		go func() {
 			for {
 				select {
 				case message := <-h.bucketChannel:
-					if len(*message.users)-1 >= 0 {
+					BoardCast := len(*message.users)-1 >= 0
+					if  !BoardCast{
 						h.broadCast(*message.origin, false)
 					} else {
 						for _, user := range *message.users {
@@ -113,7 +115,6 @@ func (h *bucket) consumer(counter int) {
 				}
 			}
 		}()
-		i--
 	}
 }
 
@@ -154,7 +155,7 @@ func (h *bucket) SendMessage(message []byte, users ...string /* if no param , it
 		} else {
 			h.bucketChannel <- &bucketMessage{
 				origin: &message,
-				users:  nil,
+				users:  &users,
 			}
 		}
 		return

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/mongofs/sim"
 	"github.com/mongofs/sim/pkg/conn"
@@ -41,7 +42,7 @@ func (h hooker) ValidateSuccess(cli conn.Connect) {
 func (h hooker) HandleReceive(conn conn.Connect, data []byte) {
 
 	conn.Send([]byte("你好呀"))
-	fmt.Println(string(data))
+	//fmt.Println(string(data))
 	return
 }
 
@@ -60,6 +61,18 @@ func main() {
 		if err := tk.http.Run(sim.Upgrade);err!=nil {
 			panic(err)
 		}
+	}()
+
+	go func() {
+		for {
+			time.Sleep(1000 *time.Millisecond)
+			err:=  sim.SendMessage([]byte("123445"),[]string{})
+			if err !=nil {
+				fmt.Println(err)
+			}
+			fmt.Println("一个循环")
+		}
+
 	}()
 	sig := make(chan os.Signal, 1)
 

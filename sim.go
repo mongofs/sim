@@ -27,7 +27,7 @@ func (s *sim) initBucket() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 
 	for i := 0; i < s.opt.ServerBucketNumber; i++ {
-		s.bs[i] = NewBucket(s.opt,i)
+		s.bs[i] = NewBucket(s.opt,i,s.ctx)
 	}
 	logging.Infof("sim : init_bucket_number is %v ", s.opt.ServerBucketNumber)
 	logging.Infof("sim : init_bucket_size  is %v ", s.opt.BucketSize)
