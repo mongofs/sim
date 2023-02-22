@@ -24,7 +24,9 @@ const (
 	Buffer                = 1 << 3
 	ConnectionWriteBuffer = 1 << 10
 	ConnectionReadBuffer  = 1 << 10
+)
 
+const (
 	MessageTypeText MessageType = iota + 1
 	MessageTypeBinary
 )
@@ -53,7 +55,7 @@ type Option struct {
 func DefaultOption() *Option {
 	return &Option{
 		Buffer:                Buffer,
-		MessageType:           MessageTypeBinary,
+		MessageType:           MessageTypeText,
 		ConnectionWriteBuffer: ConnectionWriteBuffer,
 		ConnectionReadBuffer:  ConnectionReadBuffer,
 	}

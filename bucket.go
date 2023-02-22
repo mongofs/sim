@@ -118,10 +118,13 @@ func (h *bucket) consumer(counter int) {
 }
 
 func (h *bucket) Offline(identification string) {
-	h.rw.RLock()
+	h.rw.Lock()
 	cli, ok := h.users[identification]
-	h.rw.RUnlock()
+	delete(h.users,identification)
+	h.rw.Unlock()
 	if ok {
+		h.opts.hooker.Offline(cli,OfflineBySqueezeOut)
+		time.Sleep(50 * time.Millisecond)
 		cli.Close()
 	}
 }

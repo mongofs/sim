@@ -180,8 +180,22 @@ func (s *sim) run() error {
 func (s *sim) online() int {
 	return 1
 }
+
+// because there is no parallel problem in slice when you read the data
+// and there is no any operate action on bucket slice ,so not use locker
 func (s *sim) sendMessage(message []byte, users []string) {
-	s.bs[0].SendMessage([]byte("123"))
+	if len(users) != 0 {
+		for _ , user := range users{
+			bs := s.bucket(user)
+			bs.SendMessage(message,user)
+		}
+		return
+	}
+	// because there is no parallel problem in slice when you read the data
+	// and there is no any operate action on bucket slice ,so not use locker
+	for _,bucket := range s.bs {
+		bucket.SendMessage(message)
+	}
 	return
 }
 func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
@@ -191,6 +205,9 @@ func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	bs := s.bucket(identification)
+
+	// try to close the same identification device
+	bs.Offline(identification)
 	sig := bs.SignalChannel()
 	cli, err := conn.NewConn(identification, sig, w, r, s.opt.hooker.HandleReceive)
 	if err != nil {

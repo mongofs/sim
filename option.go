@@ -27,6 +27,11 @@ const (
 	DefaultBucketSendMessageGoroutine = 1 << 2 // 4
 )
 
+const (
+	OfflineBySqueezeOut = iota +1
+	OfflineByLogic
+)
+
 type Options struct {
 	ClientHeartBeatInterval    int // ClientHeartBeatInterval 用户的心跳间隔时间
 	Connection                 *conn.Option
@@ -64,6 +69,13 @@ type Hooker interface {
 	// Receive 是需要用户进行注册，主要是为了接管用户上传的消息内容，在消息处理的时候可以根据
 	// 自身的业务需求进行处理
 	HandleReceive(conn conn.Connect, data []byte)
+
+	// 用户被主动下线会给他下发消息,使用者只是需要获取到当前的用户的连接信息,这个回调函数会将
+	// 用户操作内容交给使用者，做具体逻辑判断
+	// 这里存在两种情况，可以给使用者具体判断
+	// 1. 当正常两个identification 同时在线需要挤掉前者，此时需要给下线通知
+	// 2. 当使用api下线用户，此时也需要通知用户下线，所以这里给了具体类型判断
+	Offline(conn conn.Connect , ty int )
 
 	// IdentificationHook 这里是注册通过连接获取连接唯一标识的绑定关系，第一个参数表示返回具体的
 	// 标识，第二个参数是具体的错误,当第二个错误出现，创建连接的动作将不再继续

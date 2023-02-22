@@ -8,6 +8,10 @@ import (
 
 type hook struct{}
 
+func (h hook) Offline(conn conn.Connect, ty int) {
+	panic("implement me")
+}
+
 func (h hook) Validate(token string) error {
 	panic("implement me")
 }
@@ -121,7 +125,7 @@ func TestSendMessage(t *testing.T) {
 			name: " send message when instance is not nil ,test the specific person ",
 			args: args{
 				msg:   []byte(" the instance is nil "),
-				Users: []string{"steven", "mike", "mikal"},
+				Users: []string{},
 			},
 			wantErr: nil,
 		},

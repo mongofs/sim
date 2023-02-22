@@ -62,7 +62,7 @@ func NewConn(Id string, sig chan<- string, w http.ResponseWriter, r *http.Reques
 	result := &conn{
 		once:           sync.Once{},
 		identification: Id,
-		buffer:         make(chan []byte, ),
+		buffer:         make(chan []byte, userOption.Buffer),
 		heartBeatTime:  time.Now().Unix(),
 		closeChan:      sig,
 		messageType:    userOption.MessageType,
@@ -95,7 +95,7 @@ func (c *conn) Send(data []byte) error {
 }
 
 func (c *conn) Close() {
-	c.close(false)
+	c.close()
 }
 
 func (c *conn) SetMessageType(messageType MessageType) {
@@ -121,6 +121,7 @@ func (c *conn) monitorSend() {
 		startTime := time.Now()
 		err := c.con.WriteMessage(int(c.messageType), data)
 		if err != nil {
+			logging.Warnf("sim : occurred error when send message : %v",err)
 			goto loop
 		}
 		spendTime := time.Since(startTime)
@@ -130,7 +131,7 @@ func (c *conn) monitorSend() {
 		}
 	}
 loop:
-	c.close(false)
+	c.close()
 }
 
 func (c *conn) monitorReceive(handleReceive Receive) {
@@ -147,15 +148,15 @@ func (c *conn) monitorReceive(handleReceive Receive) {
 		handleReceive(c, data)
 	}
 loop:
-	c.close(false)
+	c.close()
 }
 
-func (c *conn) close(forRetry bool) {
+func (c *conn) close() {
 	c.once.Do(func() {
-		if !forRetry {
-			c.closeChan <- c.Identification()
+		c.closeChan <- c.Identification()
+		if err := c.con.Close();err!=nil {
+			logging.Errorf("sim : occurred error when close connection:  %v", err)
 		}
-		c.con.Close()
 		logging.Infof("sim : Identification ' %v ' out off the line ", c.Identification())
 	})
 }
