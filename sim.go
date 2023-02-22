@@ -50,8 +50,8 @@ func (s *sim) monitorBucket(ctx context.Context) (string, error) {
 			for _, v := range s.bs {
 				sum += int64(v.Count())
 			}
-			s.ps.Store(sum)
-			logging.Infof("sim : Current online number %v ", s.ps.Load())
+			s.num.Store(sum)
+			logging.Infof("sim : Current online number %v ", s.num.Load())
 		}
 	}
 }

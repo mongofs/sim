@@ -27,7 +27,7 @@ import (
 
 type bucketInterface interface {
 	// you can register the user to the bucket set
-	Register(client conn.Connect) (string,int64,error)
+	Register(client conn.Connect) (string, int64, error)
 
 	// you can offline the user in anytime
 	Offline(identification string)
@@ -42,9 +42,21 @@ type bucketInterface interface {
 	Count() int
 }
 
+type bucketMessage struct {
+	origin *[]byte
+	users  *[]string
+}
+
 type bucket struct {
 
 	id string
+
+	// Attention:
+	// this is a switch to control bucket use channel buffer or not ,
+	// more higher performance you can turn it on ,if you want do message ack ,
+	// the better choice is turn it off
+	bucketChannel chan *bucketMessage
+
 	rw sync.RWMutex
 	// Element Number
 	np atomic.Int64
@@ -54,23 +66,54 @@ type bucket struct {
 	// the close signal received by component that is connection
 	// so we need use channel to inform bucket that user is out of line
 	closeSig chan string
-	ctx context.Context
+	ctx      context.Context
 	callback func()
-	opts *Options
+	opts     *Options
 }
 
-func NewBucket(option *Options, i int ) *bucket {
+func NewBucket(option *Options, id int, buffer int) *bucket {
 	res := &bucket{
-		id : "bucket_" + strconv.Itoa(i),
+		id:       "bucket_" + strconv.Itoa(id),
 		rw:       sync.RWMutex{},
 		np:       atomic.Int64{},
 		closeSig: make(chan string),
 		opts:     option,
 	}
 	res.users = make(map[string]conn.Connect, res.opts.BucketSize)
-	go res.monitorDelChannel()
-	go res.keepAlive()
+	if buffer <= 0 {
+		go res.monitorDelChannel()
+		go res.keepAlive()
+		return res
+	} else {
+		res.bucketChannel = make(chan *bucketMessage, buffer)
+		res.consumer(1 << 2)
+		go res.monitorDelChannel()
+		go res.keepAlive()
+		return res
+	}
 	return res
+}
+
+func (h *bucket) consumer(counter int) {
+	for i := counter; i < 0; {
+		go func() {
+			for {
+				select {
+				case message := <-h.bucketChannel:
+					if len(*message.users)-1 >= 0 {
+						h.broadCast(*message.origin, false)
+					} else {
+						for _, user := range *message.users {
+							h.send(*message.origin, user, false)
+						}
+					}
+				case <-h.ctx.Done():
+					return
+				}
+			}
+		}()
+		i--
+	}
 }
 
 func (h *bucket) Offline(identification string) {
@@ -82,9 +125,9 @@ func (h *bucket) Offline(identification string) {
 	}
 }
 
-func (h *bucket) Register(cli conn.Connect) (string,int64,error) {
+func (h *bucket) Register(cli conn.Connect) (string, int64, error) {
 	if cli == nil {
-		return "",0,errors.New("sim : the obj of cli is nil ")
+		return "", 0, errors.New("sim : the obj of cli is nil ")
 	}
 	h.rw.Lock()
 	defer h.rw.Unlock()
@@ -94,10 +137,24 @@ func (h *bucket) Register(cli conn.Connect) (string,int64,error) {
 	}
 	h.users[cli.Identification()] = cli
 	h.np.Add(1)
-	return h.id,h.np.Load(),nil
+	return h.id, h.np.Load(), nil
 }
 
 func (h *bucket) SendMessage(message []byte, users ...string /* if no param , it will use broadcast */) {
+	if h.bucketChannel != nil {
+		if len(users)-1 >= 0 {
+			h.bucketChannel <- &bucketMessage{
+				origin: &message,
+				users:  &users,
+			}
+		} else {
+			h.bucketChannel <- &bucketMessage{
+				origin: &message,
+				users:  nil,
+			}
+		}
+		return
+	}
 	if len(users)-1 >= 0 {
 		for _, user := range users {
 			h.send(message, user, false)
@@ -206,5 +263,3 @@ func (h *bucket) keepAlive() {
 		time.Sleep(10 * time.Second)
 	}
 }
-
-

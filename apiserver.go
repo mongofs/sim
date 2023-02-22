@@ -1,34 +1,87 @@
+/* Copyright 2022 steven
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*    http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+ */
+
 package sim
 
 import (
 	"context"
-	"github.com/mongofs/sim/pkg/conn"
-	"github.com/mongofs/sim/pkg/logging"
-	"go.uber.org/atomic"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/mongofs/sim/pkg/conn"
+	"github.com/mongofs/sim/pkg/logging"
+	"go.uber.org/atomic"
 )
 
-type ApiServer interface {
-	Run() error
-	Ping() string
-	Online() int
-	SendMessage(message []byte, users []string)
-	Upgrade(w http.ResponseWriter, r *http.Request) error
-}
+const (
+	RunStatusRunning = 1 + iota
+	RunStatusStopped
+
+)
 
 type sim struct {
+	// this is the slice of bucket , the bucket implement you can see ./bucket.go
+	// or github/mongofs/sim/bucket.go . for avoid the big locker , the specific
+	// implement use hash crc13 , so you don't worry about the matter of performance
 	bs     []bucketInterface
-	ps     atomic.Int64
+
+	// this is the counter of online User, there have a goroutine to provide the
+	// precision of online people
+	num     atomic.Int64
+
+	// this is function to notify all goroutine exit
 	cancel context.CancelFunc
 	ctx    context.Context
+
+	// this parameter is for judge sim status ( running or not )
+	stat uint
+
+	// this is the option about sim ,you can see ./option.go or github.com/mongofs/sim/option.go
+	// you can use the function provided by option.go to set the parameters
 	opt    *Options
 }
 
-func NewSIM(hooker Hooker, opts ...OptionFunc) (ApiServer ApiServer, err error) {
+var (
+	stalk *sim
+	once  sync.Once
+)
+
+var (
+	// make sure the resource not exist
+	errInstanceIsExist = errors.New("the instance is existed ")
+	// make sure the resource  exist
+	errInstanceIsNotExist = errors.New("the instance is not existed ")
+	// the server is not Running
+	errServerIsNotRunning =errors.New("the server is not running ")
+	errServerIsRunning =errors.New("the server is  running ")
+
+	// hook is nil
+	errHookIsNil = errors.New("hook is nil ")
+
+)
+
+
+func NewSIMServer(hooker Hooker, opts ...OptionFunc) error {
+	if hooker == nil {
+		panic("hook is nil ")
+	}
+	if stalk != nil {
+		return errInstanceIsExist
+	}
+
 	options := LoadOptions(hooker, opts...)
 	var (
 		logger logging.Logger
@@ -43,17 +96,56 @@ func NewSIM(hooker Hooker, opts ...OptionFunc) (ApiServer ApiServer, err error) 
 	}
 
 	b := &sim{
-		ps:  atomic.Int64{},
+		num:  atomic.Int64{},
 		opt: options,
+		stat: RunStatusStopped,
 	}
-	b.ps.Store(0)
+	b.num.Store(0)
 	b.initBucket() // init bucket plugin
-	return b, nil
+
+	stalk = b
+	return nil
+}
+
+// This function is
+func Run() error {
+	if stalk == nil {
+		return errInstanceIsNotExist
+	}
+	if stalk.stat != RunStatusStopped {
+		// that is mean the sim not run
+		return errServerIsRunning
+	}
+	return stalk.run()
+}
+
+func SendMessage(msg []byte, Users []string) error {
+	if stalk == nil {
+		return errInstanceIsNotExist
+	}
+	if stalk.stat != RunStatusRunning {
+		// that is mean the sim not run
+		return errServerIsNotRunning
+	}
+	stalk.sendMessage(msg, Users)
+	return nil
+}
+
+func Upgrade(w http.ResponseWriter, r *http.Request) error {
+	if stalk == nil {
+		return errInstanceIsNotExist
+	}
+	if stalk.stat != RunStatusRunning {
+		// that is mean the sim not run
+		return errServerIsNotRunning
+	}
+	return stalk.upgrade(w, r)
 }
 
 type HandleUpgrade func(w http.ResponseWriter, r *http.Request) error
 
-func (s *sim) Run() error {
+
+func (s *sim) run() error {
 	if s.opt.ServerDiscover != nil {
 		s.opt.ServerDiscover.Register()
 		defer func() {
@@ -63,6 +155,7 @@ func (s *sim) Run() error {
 
 	parallelTask, finishChannel := s.Parallel()
 	sigs := make(chan os.Signal, 1)
+	s.stat = RunStatusRunning
 	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	for {
 		select {
@@ -77,20 +170,14 @@ func (s *sim) Run() error {
 	}
 	return nil
 }
-func (s *sim) Ping() string {
-	return ""
-}
-func (s *sim) Online() int {
+func (s *sim) online() int {
 	return 1
 }
-func (s *sim) Upgrade(w http.ResponseWriter, r *http.Request) error {
-	return s.upgrade(w, r)
-}
-func (s *sim) SendMessage(message []byte, users []string) {
+func (s *sim) sendMessage(message []byte, users []string) {
+	s.bs[0].SendMessage([]byte("123"))
 	return
 }
 func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
-
 	// this is plugin need the coder to implement it
 	identification, err := s.opt.hooker.IdentificationHook(w, r)
 	if err != nil {
@@ -108,18 +195,19 @@ func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
 	} else {
 		s.opt.hooker.ValidateSuccess(cli)
 	}
-	if bucketId,userNum ,err := bs.Register(cli); err != nil {
+	if bucketId, userNum, err := bs.Register(cli); err != nil {
 		cli.Send([]byte(err.Error()))
 		cli.Close()
 		return err
-	}else{
-		logging.Infof("sim : %v connected ,bucket : %v ,number : %v", cli.Identification(),bucketId,userNum)
+	} else {
+		logging.Infof("sim : %v connected ,bucket : %v ,number : %v", cli.Identification(), bucketId, userNum)
 		return nil
 	}
 }
 
 func (s *sim) close() error {
 	s.cancel()
+	s.stat = RunStatusStopped
 	return nil
 }
 

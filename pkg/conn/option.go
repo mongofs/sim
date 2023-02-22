@@ -13,6 +13,11 @@
 
 package conn
 
+import (
+	"errors"
+	"go.uber.org/atomic"
+)
+
 type MessageType uint
 
 const (
@@ -24,6 +29,20 @@ const (
 	MessageTypeBinary
 )
 
+// Various errors contained in OpError.
+var (
+	// For connection write buffer param
+	ErrConnWriteBufferParam = errors.New("conn write buffer param is wrong err , the value must bigger the 1")
+
+	// For connection read buffer param
+	ErrConnReadBufferParam = errors.New("conn read buffer param is wrong err , the value must bigger the 1")
+
+	// For connection  buffer param
+	ErrBufferParam = errors.New("conn  buffer param is wrong err , the value must bigger the 1")
+	// For connection  Message Type param
+	ErrMessageTypeParam = errors.New("conn  MessageType param is wrong err , the value must be 1 or 2")
+)
+
 type Option struct {
 	Buffer                int         // Buffer the data that need to send
 	MessageType           MessageType // Message type
@@ -31,7 +50,7 @@ type Option struct {
 	ConnectionReadBuffer  int         // connection read buffer
 }
 
-func DefaultOption ()*Option{
+func DefaultOption() *Option {
 	return &Option{
 		Buffer:                Buffer,
 		MessageType:           MessageTypeBinary,
@@ -42,6 +61,39 @@ func DefaultOption ()*Option{
 
 var userOption *Option = DefaultOption()
 
-func SetOption (option *Option) {
-	userOption =option
+func SetOption(option *Option) error {
+	if err := validate(option); err != nil {
+		return err
+	}
+	userOption = option
+	return nil
+}
+
+func validate(option *Option) error {
+	if option.Buffer < 1 {
+		return ErrBufferParam
+	} else if option.ConnectionReadBuffer < 1 {
+		return ErrConnReadBufferParam
+	} else if option.ConnectionWriteBuffer < 1 {
+		return ErrConnWriteBufferParam
+	} else if option.MessageType != MessageTypeText && option.MessageType != MessageTypeBinary {
+		return ErrMessageTypeParam
+	} else {
+		return nil
+	}
+}
+
+// counter message wrapper add a counter for message , the counter is for record
+// that times of message send by net card
+type CounterMessageWrapper struct {
+	origin  *[]byte
+	counter *atomic.Int64
+}
+
+// wrap message
+func WrapSendMessage(message *[]byte) CounterMessageWrapper {
+	return CounterMessageWrapper{
+		origin: message,
+		counter: &atomic.Int64{},
+	}
 }
