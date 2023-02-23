@@ -25,10 +25,13 @@ const (
 	DefaultServerBucketNumber         = 1 << 4 // 16
 	DefaultBucketBuffer               = 1 << 5 // 32
 	DefaultBucketSendMessageGoroutine = 1 << 2 // 4
+
+	// to show some pprof
+	DefaultPProfPort = ":6060"
 )
 
 const (
-	OfflineBySqueezeOut = iota +1
+	OfflineBySqueezeOut = iota + 1
 	OfflineByLogic
 )
 
@@ -42,7 +45,7 @@ type Options struct {
 	Logger                     logging.Logger // Logger 设置logger
 	LogPath                    string         // LogPath 设置logger path
 	LogLevel                   logging.Level  // LogLevel 设置logger level
-
+	PProfPort                  string         // PProfPort 设置pprof端口
 	// ====================================== Option for hard code ===============================
 	ServerDiscover Discover // ServerDiscover 进行服务的发现注册，支持多部署能力
 	hooker         Hooker   // 是必须设置的code函数
@@ -75,7 +78,7 @@ type Hooker interface {
 	// 这里存在两种情况，可以给使用者具体判断
 	// 1. 当正常两个identification 同时在线需要挤掉前者，此时需要给下线通知
 	// 2. 当使用api下线用户，此时也需要通知用户下线，所以这里给了具体类型判断
-	Offline(conn conn.Connect , ty int )
+	Offline(conn conn.Connect, ty int)
 
 	// IdentificationHook 这里是注册通过连接获取连接唯一标识的绑定关系，第一个参数表示返回具体的
 	// 标识，第二个参数是具体的错误,当第二个错误出现，创建连接的动作将不再继续
@@ -92,6 +95,7 @@ func DefaultOption() *Options {
 		BucketBuffer:               DefaultBucketBuffer,
 		BucketSendMessageGoroutine: DefaultBucketSendMessageGoroutine,
 		ServerBucketNumber:         DefaultServerBucketNumber,
+		PProfPort:                  DefaultPProfPort,
 	}
 }
 

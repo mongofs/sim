@@ -25,7 +25,7 @@ type Connect interface {
 
 	Send(data []byte) error
 
-	Close()
+	Close(reason string)
 
 	SetMessageType(messageType MessageType)
 

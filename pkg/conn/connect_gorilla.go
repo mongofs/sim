@@ -52,7 +52,11 @@ type conn struct {
 	// closeChan 是一个上层传入的一个chan，当用户连接关闭，可以将本身token传入closeChan
 	// 通知到bucket层以及其他层进行处理，但是bucket作为connect管理单元，在做上层channel监听
 	// 的时候尽量不要读取closeChan
-	closeChan   chan<- string
+
+	notify   chan<- string
+
+	// closeChan
+	closeChan chan struct{}
 	messageType MessageType // text /binary
 }
 
@@ -64,7 +68,8 @@ func NewConn(Id string, sig chan<- string, w http.ResponseWriter, r *http.Reques
 		identification: Id,
 		buffer:         make(chan []byte, userOption.Buffer),
 		heartBeatTime:  time.Now().Unix(),
-		closeChan:      sig,
+		notify:      sig,
+		closeChan: make(chan struct{}),
 		messageType:    userOption.MessageType,
 	}
 	err := result.upgrade(w, r, userOption.ConnectionReadBuffer, userOption.ConnectionWriteBuffer)
@@ -94,8 +99,8 @@ func (c *conn) Send(data []byte) error {
 	return nil
 }
 
-func (c *conn) Close() {
-	c.close()
+func (c *conn) Close(reason string) {
+	c.close(reason)
 }
 
 func (c *conn) SetMessageType(messageType MessageType) {
@@ -117,21 +122,25 @@ func (c *conn) monitorSend() {
 		}
 	}()
 	for {
-		data := <-c.buffer
-		startTime := time.Now()
-		err := c.con.WriteMessage(int(c.messageType), data)
-		if err != nil {
-			logging.Warnf("sim : occurred error when send message : %v",err)
+		select {
+		case <- c.closeChan:
 			goto loop
-		}
-		spendTime := time.Since(startTime)
-		if spendTime > time.Duration(2)*time.Second {
-			logging.Warnf("sim : the situation of net is bad ,"+
-				" Identification is '%v':'%v'", c.Identification(), spendTime)
+		case data := <-c.buffer:
+			startTime := time.Now()
+			err := c.con.WriteMessage(int(c.messageType), data)
+			if err != nil {
+				logging.Warnf("sim : occurred error when send message : %v",err)
+				goto loop
+			}
+			spendTime := time.Since(startTime)
+			if spendTime > time.Duration(2)*time.Second {
+				logging.Warnf("sim : the situation of net is bad ,"+
+					" Identification is '%v':'%v'", c.Identification(), spendTime)
+			}
 		}
 	}
 loop:
-	c.close()
+	c.close("monitorSend")
 }
 
 func (c *conn) monitorReceive(handleReceive Receive) {
@@ -141,23 +150,26 @@ func (c *conn) monitorReceive(handleReceive Receive) {
 		}
 	}()
 	for {
-		_, data, err := c.con.ReadMessage()
-		if err != nil {
-			goto loop
-		}
-		handleReceive(c, data)
+
+			_, data, err := c.con.ReadMessage()
+			if err != nil {
+				goto loop
+			}
+			handleReceive(c, data)
+
 	}
 loop:
-	c.close()
+	c.close("monitorReceive")
 }
 
-func (c *conn) close() {
+func (c *conn) close(cause string ) {
 	c.once.Do(func() {
-		c.closeChan <- c.Identification()
+		c.notify <- c.Identification()
+		close(c.closeChan)
 		if err := c.con.Close();err!=nil {
 			logging.Errorf("sim : occurred error when close connection:  %v", err)
 		}
-		logging.Infof("sim : Identification ' %v ' out off the line ", c.Identification())
+		logging.Infof("sim : Identification ' %v ' offline ,cause '%s' ", c.Identification(),cause)
 	})
 }
 

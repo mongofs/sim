@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	print2 "github.com/mongofs/sim/pkg/print"
 
 	"github.com/gorilla/websocket"
 	"go.uber.org/atomic"
@@ -59,11 +60,11 @@ func NewBench(conf *Config) *Bench {
 func (s *Bench) Run() {
 	tokens := s.getValidateKey()
 	url = fmt.Sprintf("%s?%s=", s.config.Host, s.config.Identification)
-	PrintWithColor(fmt.Sprintf("CONFIG-PRINT-URL : url is '%s'", url),FgGreen)
-	PrintWithColor(fmt.Sprintf("CONFIG-PRINT-HEARTBEAT : heartbeat interval  is  '%vs' ", s.heartBeat),FgGreen)
-	PrintWithColor(fmt.Sprintf("CONFIG-PRINT-KEEPTIME : keep time is  '%vs' ", s.heartBeat),FgGreen)
-	PrintWithColor(fmt.Sprintf("CONFIG_PRINT_ONLINE_TEST : '%s' BaseToken is online", identification),FgGreen)
-	PrintWithColorAndSpace(fmt.Sprintf("=====================================CONFIG_IS_UP ================================"),FgYellow,1,1)
+	print2.PrintWithColor(fmt.Sprintf("CONFIG-PRINT-URL : url is '%s'", url), print2.FgGreen)
+	print2.PrintWithColor(fmt.Sprintf("CONFIG-PRINT-HEARTBEAT : heartbeat interval  is  '%vs' ", s.heartBeat), print2.FgGreen)
+	print2.PrintWithColor(fmt.Sprintf("CONFIG-PRINT-KEEPTIME : keep time is  '%vs' ", s.heartBeat), print2.FgGreen)
+	print2.PrintWithColor(fmt.Sprintf("CONFIG_PRINT_ONLINE_TEST : '%s' BaseToken is online", identification), print2.FgGreen)
+	print2.PrintWithColorAndSpace(fmt.Sprintf("=====================================CONFIG_IS_UP ================================"), print2.FgYellow,1,1)
 
 	// create the based connection
 	go func() {
@@ -82,7 +83,7 @@ func (s *Bench) Batch(tokens []string) {
 		if k%s.config.Concurrency == 0 && k != 0 {
 			time.Sleep(1000 * time.Millisecond)
 			if s.success.Load() != 0 {
-				PrintWithColor(fmt.Sprintf("Current_Status: Online %v ,Fail %v ", s.success.Load(), s.fail.Load()),FgGreen)
+				print2.PrintWithColor(fmt.Sprintf("Current_Status: Online %v ,Fail %v ", s.success.Load(), s.fail.Load()), print2.FgGreen)
 			}
 		}
 		go s.CreateClient(v)
@@ -90,10 +91,10 @@ func (s *Bench) Batch(tokens []string) {
 
 	// because the interval of for loop exist the sleep 1 millisecond
 	time.Sleep(1001 * time.Millisecond)
-	PrintWithColor(fmt.Sprintf("Current_Status: Online %v ,Fail %v ", s.success.Load(), s.fail.Load()),FgGreen)
+	print2.PrintWithColor(fmt.Sprintf("Current_Status: Online %v ,Fail %v ", s.success.Load(), s.fail.Load()), print2.FgGreen)
 
 	s.stage =StageOfFinishCreateConnection
-	PrintWithColorAndSpace(fmt.Sprintf(" =====================================Created_Connection_Situation_IS_UP==========================================="),FgYellow,1,1)
+	print2.PrintWithColorAndSpace(fmt.Sprintf(" =====================================Created_Connection_Situation_IS_UP==========================================="), print2.FgYellow,1,1)
 }
 
 func (s *Bench) CreateClient(identification string) error {
@@ -129,7 +130,7 @@ func (s *Bench) CreateClient(identification string) error {
 			case websocket.TextMessage:
 				if s.stage == StageOfFinishCreateConnection{
 					s.singleMessageCount.Inc()
-					PrintWithColor(fmt.Sprintf("BaseToken_Receive  : %v", string(messageData)),FgBlue)
+					print2.PrintWithColor(fmt.Sprintf("BaseToken_Receive  : %v", string(messageData)), print2.FgBlue)
 				}
 			case websocket.BinaryMessage:
 			default:
@@ -147,7 +148,7 @@ func (s *Bench) monitor() {
 			case <-t.C:
 				str:= fmt.Sprintf("Current_Status: Online_%v ,Retry_%v, Msg_Count_%v ,All_Msg_Count %v",
 					s.online.Load(), s.retry.Load(), s.singleMessageCount.Load(), s.allUserMessageCount.Load())
-				PrintWithColor(str,FgGreen)
+				print2.PrintWithColor(str, print2.FgGreen)
 			case token := <-s.closeMonitor:
 				fmt.Printf("Client_Offline:  %v is closed \r\n", token)
 				s.retry.Inc()

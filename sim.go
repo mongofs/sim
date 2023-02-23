@@ -15,6 +15,7 @@ package sim
 
 import (
 	"context"
+	"fmt"
 	"github.com/mongofs/sim/pkg/logging"
 	"github.com/zhenjl/cityhash"
 	"time"
@@ -51,7 +52,13 @@ func (s *sim) monitorBucket(ctx context.Context) (string, error) {
 				sum += int64(v.Count())
 			}
 			s.num.Store(sum)
-			logging.Infof("sim : Current online number %v ", s.num.Load())
+			if s.debug == true {
+				// you get get the pprof ,
+				pprof:= fmt.Sprintf("http://127.0.0.1%v/debug/pprof",s.opt.PProfPort)
+				logging.Infof("sim : Current_Online %v PProf '%v'", s.num.Load(),pprof)
+			}else {
+				logging.Infof("sim : Current_Online %v ", s.num.Load())
+			}
 		}
 	}
 }

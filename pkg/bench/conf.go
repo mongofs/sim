@@ -26,9 +26,9 @@ var (
 
 // 整体流程： connection  -c -
 func init() {
-	pflag.IntVarP(&concurrency, "concurrency", "c", 50, "并发请求数量 ，比如 -c 100 ，代表每秒创建100个链接")
-	pflag.IntVarP(&number, "number", "n", 1000, "总的请求数量 ，比如 -n 10000,代表总共建立链接10000个")
-	pflag.IntVarP(&heartBeat, "heartBeat", "b", 0, "是否上报心跳，如果设置存在值，就会按照默认的结构体{test :1}按设定时间进行心跳发送 ")
+	pflag.IntVarP(&concurrency, "concurrency", "c", 100, "并发请求数量 ，比如 -c 100 ，代表每秒创建100个链接")
+	pflag.IntVarP(&number, "number", "n", 10000, "总的请求数量 ，比如 -n 10000,代表总共建立链接10000个")
+	pflag.IntVarP(&heartBeat, "heartBeat", "b", 50, "是否上报心跳，如果设置存在值，就会按照默认的结构体{test :1}按设定时间进行心跳发送 ")
 	pflag.IntVarP(&keepTime, "keepTime", "k", 0, "总的在线时长，比如 -k 100s ,代表在线时间为100秒，100秒后就会释放，为0不释放")
 	pflag.IntVarP(&monitorPrint, "monitor", "m", 10, "设置当前状态打印间隔，默认10s")
 	pflag.StringVarP(&host, "host", "h", "ws://127.0.0.1:3306/conn", "设置对应的Url")

@@ -126,7 +126,7 @@ func (h *bucket) Offline(identification string) {
 	if ok {
 		h.opts.hooker.Offline(cli,OfflineBySqueezeOut)
 		time.Sleep(50 * time.Millisecond)
-		cli.Close()
+		cli.Close("Use the Bucket API : Offline ")
 	}
 }
 
@@ -136,10 +136,6 @@ func (h *bucket) Register(cli conn.Connect) (string, int64, error) {
 	}
 	h.rw.Lock()
 	defer h.rw.Unlock()
-	old, ok := h.users[cli.Identification()]
-	if ok {
-		old.Close()
-	}
 	h.users[cli.Identification()] = cli
 	h.np.Add(1)
 	return h.id, h.np.Load(), nil
@@ -263,7 +259,7 @@ func (h *bucket) keepAlive() {
 		}
 		h.rw.Unlock()
 		for _, cancel := range cancelCli {
-			cancel.Close()
+			cancel.Close("heartbeat is not arrive ")
 		}
 		time.Sleep(10 * time.Second)
 	}

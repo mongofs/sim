@@ -15,12 +15,13 @@ package sim
 import (
 	"context"
 	"errors"
-	"github.com/mongofs/sim/pkg/conn"
-	"github.com/mongofs/sim/pkg/logging"
-	"go.uber.org/atomic"
 	"net/http"
 	"sync"
 	"time"
+	_ "net/http/pprof"
+	"github.com/mongofs/sim/pkg/conn"
+	"github.com/mongofs/sim/pkg/logging"
+	"go.uber.org/atomic"
 )
 
 const (
@@ -43,7 +44,9 @@ type sim struct {
 	ctx    context.Context
 
 	// this parameter is for judge sim status ( running or not )
-	stat uint
+	running uint
+
+	debug bool
 
 	// this is the option about sim ,you can see ./option.go or github.com/mongofs/sim/option.go
 	// you can use the function provided by option.go to set the parameters
@@ -90,9 +93,9 @@ func NewSIMServer(hooker Hooker, opts ...OptionFunc) error {
 	}
 
 	b := &sim{
-		num:  atomic.Int64{},
-		opt:  options,
-		stat: RunStatusStopped,
+		num:     atomic.Int64{},
+		opt:     options,
+		running: RunStatusStopped,
 	}
 	b.num.Store(0)
 	b.initBucket() // init bucket plugin
@@ -106,7 +109,7 @@ func Run() error {
 	if stalk == nil {
 		return errInstanceIsNotExist
 	}
-	if stalk.stat != RunStatusStopped {
+	if stalk.running != RunStatusStopped {
 		// that is mean the sim not run
 		return errServerIsRunning
 	}
@@ -117,7 +120,7 @@ func SendMessage(msg []byte, Users []string) error {
 	if stalk == nil {
 		return errInstanceIsNotExist
 	}
-	if stalk.stat != RunStatusRunning {
+	if stalk.running != RunStatusRunning {
 		// that is mean the sim not run
 		return errServerIsNotRunning
 	}
@@ -129,7 +132,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request) error {
 	if stalk == nil {
 		return errInstanceIsNotExist
 	}
-	if stalk.stat != RunStatusRunning {
+	if stalk.running != RunStatusRunning {
 		// that is mean the sim not run
 		return errServerIsNotRunning
 	}
@@ -140,7 +143,7 @@ func Stop() error {
 	if stalk == nil {
 		return errInstanceIsNotExist
 	}
-	if stalk.stat != RunStatusRunning {
+	if stalk.running != RunStatusRunning {
 		// that is mean the sim not run
 		return errServerIsNotRunning
 	}
@@ -149,7 +152,29 @@ func Stop() error {
 	return nil
 }
 
+// this function is for Debug when you start this ,it will open the pprof
+// so the default value is false
+func SetDebug() error {
+	if stalk == nil {
+		return errInstanceIsNotExist
+	}
+	if stalk.running != RunStatusStopped {
+		// that is mean the sim not run
+		return errServerIsRunning
+	}
+
+	stalk.pprof()
+	return nil
+}
+
 type HandleUpgrade func(w http.ResponseWriter, r *http.Request) error
+
+func (s *sim) pprof() {
+	s.debug = true
+	go func() {
+		http.ListenAndServe(s.opt.PProfPort, nil)
+	}()
+}
 
 func (s *sim) run() error {
 	if s.opt.ServerDiscover != nil {
@@ -160,7 +185,7 @@ func (s *sim) run() error {
 	}
 
 	parallelTask, finishChannel := s.Parallel()
-	s.stat = RunStatusRunning
+	s.running = RunStatusRunning
 
 	go func() {
 		// monitor the channel and log the out information
@@ -178,22 +203,22 @@ func (s *sim) run() error {
 }
 
 func (s *sim) online() int {
-	return 1
+	return int(s.num.Load())
 }
 
 // because there is no parallel problem in slice when you read the data
 // and there is no any operate action on bucket slice ,so not use locker
 func (s *sim) sendMessage(message []byte, users []string) {
 	if len(users) != 0 {
-		for _ , user := range users{
+		for _, user := range users {
 			bs := s.bucket(user)
-			bs.SendMessage(message,user)
+			bs.SendMessage(message, user)
 		}
 		return
 	}
 	// because there is no parallel problem in slice when you read the data
 	// and there is no any operate action on bucket slice ,so not use locker
-	for _,bucket := range s.bs {
+	for _, bucket := range s.bs {
 		bucket.SendMessage(message)
 	}
 	return
@@ -221,7 +246,7 @@ func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
 	}
 	if bucketId, userNum, err := bs.Register(cli); err != nil {
 		cli.Send([]byte(err.Error()))
-		cli.Close()
+		cli.Close("register to bucket error ")
 		return err
 	} else {
 		logging.Infof("sim : %v connected ,bucket : %v ,number : %v", cli.Identification(), bucketId, userNum)
@@ -231,7 +256,7 @@ func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
 
 func (s *sim) close() error {
 	s.cancel()
-	s.stat = RunStatusStopped
+	s.running = RunStatusStopped
 	return nil
 }
 

@@ -42,6 +42,8 @@ func (h hooker) ValidateSuccess(cli conn.Connect) {
 func (h hooker) HandleReceive(conn conn.Connect, data []byte) {
 
 	conn.Send([]byte("你好呀"))
+
+	conn.ReFlushHeartBeatTime()
 	//fmt.Println(string(data))
 	return
 }
@@ -53,6 +55,7 @@ func (h hooker) IdentificationHook(w http.ResponseWriter, r *http.Request) (stri
 
 func main() {
 	sim.NewSIMServer(hooker{})
+	sim.SetDebug()
 	tk := &talk{http: NewHTTP()}
 	if err := sim.Run(); err != nil {
 		panic(err)
