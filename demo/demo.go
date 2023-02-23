@@ -65,7 +65,7 @@ func main() {
 
 	go func() {
 		for {
-			time.Sleep(1000 *time.Millisecond)
+			time.Sleep(10000 *time.Millisecond)
 			err:=  sim.SendMessage([]byte("123445"),[]string{})
 			if err !=nil {
 				fmt.Println(err)
