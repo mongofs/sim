@@ -16,6 +16,7 @@ package sim
 import (
 	"context"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"strconv"
 	"sync"
 	"time"
@@ -78,7 +79,7 @@ func NewBucket(option *Options, id int, ctx context.Context) *bucket {
 		np:       atomic.Int64{},
 		closeSig: make(chan string),
 		opts:     option,
-		ctx: ctx,
+		ctx:      ctx,
 	}
 	res.users = make(map[string]conn.Connect, res.opts.BucketSize)
 	if option.BucketBuffer <= 0 {
@@ -97,13 +98,18 @@ func NewBucket(option *Options, id int, ctx context.Context) *bucket {
 
 // consumer is a goroutine pool to send message parallelly
 func (h *bucket) consumer(counter int) {
-	for i := 0; i < counter;i++ {
+	for i := 0; i < counter; i++ {
 		go func() {
+			defer func() {
+				if err :=recover();err !=nil {
+					logging.Log.Error("consumer",zap.Any("PANIC",err))
+				}
+			}()
 			for {
 				select {
 				case message := <-h.bucketChannel:
 					BoardCast := len(*message.users)-1 >= 0
-					if  !BoardCast{
+					if !BoardCast {
 						h.broadCast(*message.origin, false)
 					} else {
 						for _, user := range *message.users {
@@ -121,10 +127,10 @@ func (h *bucket) consumer(counter int) {
 func (h *bucket) Offline(identification string) {
 	h.rw.Lock()
 	cli, ok := h.users[identification]
-	delete(h.users,identification)
+	delete(h.users, identification)
 	h.rw.Unlock()
 	if ok {
-		h.opts.hooker.Offline(cli,OfflineBySqueezeOut)
+		h.opts.hooker.Offline(cli, OfflineBySqueezeOut)
 		time.Sleep(50 * time.Millisecond)
 		cli.Close("Use the Bucket API : Offline ")
 	}
@@ -184,8 +190,7 @@ func (h *bucket) send(data []byte, token string, Ack bool) {
 		return
 	} else {
 		err := cli.Send(data)
-		// todo
-		logging.Error(err)
+		logging.Log.Error("bucket send", zap.Error(err))
 	}
 	return
 }
@@ -195,8 +200,7 @@ func (h *bucket) broadCast(data []byte, Ack bool) {
 	for _, cli := range h.users {
 		err := cli.Send(data)
 		if err != nil {
-			// todo
-			logging.Error(err)
+			logging.Log.Error("bucket broadCast", zap.Error(err))
 			continue
 		}
 	}
@@ -222,6 +226,11 @@ func (h *bucket) delUser(identification string) {
 // To monitor the whole bucket
 // run in a goroutine
 func (h *bucket) monitorDelChannel() {
+	defer func() {
+		if err := recover();err !=nil {
+			logging.Log.Fatal("monitorDelChannel",zap.Any("PANIC",err))
+		}
+	}()
 	if h.ctx != nil {
 		for {
 			select {
@@ -243,6 +252,11 @@ func (h *bucket) monitorDelChannel() {
 // To keepAlive the whole bucket
 // run in a goroutine
 func (h *bucket) keepAlive() {
+	defer func() {
+		if err := recover(); err != nil {
+			logging.Log.Error("keepAlive",zap.Any("PANIC",err))
+		}
+	}()
 	if h.opts.ClientHeartBeatInterval == 0 {
 		return
 	}

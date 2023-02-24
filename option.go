@@ -38,17 +38,18 @@ const (
 type Options struct {
 	ClientHeartBeatInterval    int // ClientHeartBeatInterval 用户的心跳间隔时间
 	Connection                 *conn.Option
-	BucketSize                 int            // BucketSize 每个bucket初始值
-	BucketBuffer               int            // BucketBuffer bucket是否支持并发下发数据，实现原理就是使用携程池进行数据下发，
-	BucketSendMessageGoroutine int            // BucketSendMessageGoroutine 这个参数要生效必须看bucket buffer ，只有支持buffer才有效
-	ServerBucketNumber         int            // ServerBucketNumber 预计单机分成多少个bucket
-	Logger                     logging.Logger // Logger 设置logger
-	LogPath                    string         // LogPath 设置logger path
-	LogLevel                   logging.Level  // LogLevel 设置logger level
-	PProfPort                  string         // PProfPort 设置pprof端口
+	BucketSize                 int           // BucketSize 每个bucket初始值
+	BucketBuffer               int           // BucketBuffer bucket是否支持并发下发数据，实现原理就是使用携程池进行数据下发，
+	BucketSendMessageGoroutine int           // BucketSendMessageGoroutine 这个参数要生效必须看bucket buffer ，只有支持buffer才有效
+	ServerBucketNumber         int           // ServerBucketNumber 预计单机分成多少个bucket
+	LogPath                    string        // LogPath 设置logger path
+	LogLevel                   logging.Level // LogLevel 设置logger level
+	PProfPort                  string        // PProfPort 设置pprof端口
 	// ====================================== Option for hard code ===============================
 	ServerDiscover Discover // ServerDiscover 进行服务的发现注册，支持多部署能力
 	hooker         Hooker   // 是必须设置的code函数
+
+	debug bool
 }
 
 // Discover 可以在服务启动停止的时候自动想注册中心进行注册和注销，这个实现是可选的，具体可
@@ -96,6 +97,8 @@ func DefaultOption() *Options {
 		BucketSendMessageGoroutine: DefaultBucketSendMessageGoroutine,
 		ServerBucketNumber:         DefaultServerBucketNumber,
 		PProfPort:                  DefaultPProfPort,
+
+		debug: false,
 	}
 }
 
@@ -109,6 +112,18 @@ func LoadOptions(hooker Hooker, Opt ...OptionFunc) *Options {
 }
 
 type OptionFunc func(b *Options)
+
+func WithServerDebug() OptionFunc {
+	return func(b *Options) {
+		b.debug = true
+	}
+}
+
+func WithPprofPort(pprof string) OptionFunc {
+	return func(b *Options) {
+		b.PProfPort = pprof
+	}
+}
 
 func WithServerBucketNumber(ServerBucketNumber int) OptionFunc {
 	return func(b *Options) {
@@ -137,12 +152,6 @@ func WithBucketSize(BucketSize int) OptionFunc {
 func WithBucketBuffer(BucketBuffer int) OptionFunc {
 	return func(b *Options) {
 		b.BucketBuffer = BucketBuffer
-	}
-}
-
-func WithLogger(logger logging.Logger) OptionFunc {
-	return func(opts *Options) {
-		opts.Logger = logger
 	}
 }
 

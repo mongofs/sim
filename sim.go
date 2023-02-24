@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"github.com/mongofs/sim/pkg/logging"
 	"github.com/zhenjl/cityhash"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -30,8 +31,9 @@ func (s *sim) initBucket() {
 	for i := 0; i < s.opt.ServerBucketNumber; i++ {
 		s.bs[i] = NewBucket(s.opt,i,s.ctx)
 	}
-	logging.Infof("sim : init_bucket_number is %v ", s.opt.ServerBucketNumber)
-	logging.Infof("sim : init_bucket_size  is %v ", s.opt.BucketSize)
+
+	logging.Log.Info("initBucket",zap.Int("BUCKET_NUMBER", s.opt.ServerBucketNumber))
+	logging.Log.Info("initBucket",zap.Int("BUCKET_SIZE", s.opt.BucketSize))
 }
 
 func (s *sim) bucket(token string) bucketInterface {
@@ -41,7 +43,9 @@ func (s *sim) bucket(token string) bucketInterface {
 
 
 func (s *sim) monitorBucket(ctx context.Context) (string, error) {
-	timer := time.NewTicker(10 * time.Second)
+	var interval = 10
+	timer := time.NewTicker(time.Duration(interval) * time.Second)
+	logging.Log.Info("monitorBucket ",zap.Int("MONITOR_ONLINE_INTERVAL",interval))
 	for {
 		select {
 		case <-ctx.Done():
@@ -52,12 +56,13 @@ func (s *sim) monitorBucket(ctx context.Context) (string, error) {
 				sum += int64(v.Count())
 			}
 			s.num.Store(sum)
-			if s.debug == true {
+			if s.opt.debug == true {
 				// you get get the pprof ,
 				pprof:= fmt.Sprintf("http://127.0.0.1%v/debug/pprof",s.opt.PProfPort)
-				logging.Infof("sim : Current_Online %v PProf '%v'", s.num.Load(),pprof)
+
+				logging.Log.Info("monitorBucket ",zap.Int64("ONLINE",s.num.Load()),zap.String("PPROF",pprof))
 			}else {
-				logging.Infof("sim : Current_Online %v ", s.num.Load())
+				logging.Log.Info("monitorBucket ",zap.Int64("ONLINE",s.num.Load()))
 			}
 		}
 	}

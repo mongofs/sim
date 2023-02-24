@@ -14,8 +14,8 @@ var (
 	r = rand.New(rand.NewSource(time.Now().Unix()))
 )
 
-const  (
-	StageOFNewConnection = iota +1
+const (
+	StageOFNewConnection = iota + 1
 	StageOfFinishCreateConnection
 )
 
@@ -31,7 +31,7 @@ type Bench struct {
 	singleMessageCount  atomic.Int64
 	allUserMessageCount atomic.Int64
 	heartBeat           int
-	stage int
+	stage               int
 
 	oToken string //output token
 	config *Config
@@ -50,7 +50,7 @@ func NewBench(conf *Config) *Bench {
 		singleMessageCount:  atomic.Int64{},
 		allUserMessageCount: atomic.Int64{},
 		heartBeat:           180,
-		stage:  StageOFNewConnection,
+		stage:               StageOFNewConnection,
 		oToken:              "BaseToken",
 		config:              conf,
 		closeMonitor:        make(chan string, 10),
@@ -64,7 +64,7 @@ func (s *Bench) Run() {
 	print2.PrintWithColor(fmt.Sprintf("CONFIG-PRINT-HEARTBEAT : heartbeat interval  is  '%vs' ", s.heartBeat), print2.FgGreen)
 	print2.PrintWithColor(fmt.Sprintf("CONFIG-PRINT-KEEPTIME : keep time is  '%vs' ", s.heartBeat), print2.FgGreen)
 	print2.PrintWithColor(fmt.Sprintf("CONFIG_PRINT_ONLINE_TEST : '%s' BaseToken is online", identification), print2.FgGreen)
-	print2.PrintWithColorAndSpace(fmt.Sprintf("=====================================CONFIG_IS_UP ================================"), print2.FgYellow,1,1)
+	print2.PrintWithColorAndSpace(fmt.Sprintf("=====================================CONFIG_IS_UP ================================"), print2.FgYellow, 1, 1)
 
 	// create the based connection
 	go func() {
@@ -93,8 +93,8 @@ func (s *Bench) Batch(tokens []string) {
 	time.Sleep(1001 * time.Millisecond)
 	print2.PrintWithColor(fmt.Sprintf("Current_Status: Online %v ,Fail %v ", s.success.Load(), s.fail.Load()), print2.FgGreen)
 
-	s.stage =StageOfFinishCreateConnection
-	print2.PrintWithColorAndSpace(fmt.Sprintf(" =====================================Created_Connection_Situation_IS_UP==========================================="), print2.FgYellow,1,1)
+	s.stage = StageOfFinishCreateConnection
+	print2.PrintWithColorAndSpace(fmt.Sprintf(" =====================================Created_Connection_Situation_IS_UP==========================================="), print2.FgYellow, 1, 1)
 }
 
 func (s *Bench) CreateClient(identification string) error {
@@ -118,6 +118,12 @@ func (s *Bench) CreateClient(identification string) error {
 		}
 	}()
 
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("panic Occre  : %v \n", err)
+		}
+	}()
+
 	for {
 		messageType, messageData, err := conn.ReadMessage()
 		if err != nil {
@@ -128,7 +134,7 @@ func (s *Bench) CreateClient(identification string) error {
 		if identification == s.oToken {
 			switch messageType {
 			case websocket.TextMessage:
-				if s.stage == StageOfFinishCreateConnection{
+				if s.stage == StageOfFinishCreateConnection {
 					s.singleMessageCount.Inc()
 					print2.PrintWithColor(fmt.Sprintf("BaseToken_Receive  : %v", string(messageData)), print2.FgBlue)
 				}
@@ -146,7 +152,7 @@ func (s *Bench) monitor() {
 		for {
 			select {
 			case <-t.C:
-				str:= fmt.Sprintf("Current_Status: Online_%v ,Retry_%v, Msg_Count_%v ,All_Msg_Count %v",
+				str := fmt.Sprintf("Current_Status: Online_%v ,Retry_%v, Msg_Count_%v ,All_Msg_Count %v",
 					s.online.Load(), s.retry.Load(), s.singleMessageCount.Load(), s.allUserMessageCount.Load())
 				print2.PrintWithColor(str, print2.FgGreen)
 			case token := <-s.closeMonitor:

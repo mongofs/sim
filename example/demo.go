@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"os/signal"
@@ -54,8 +55,7 @@ func (h hooker) IdentificationHook(w http.ResponseWriter, r *http.Request) (stri
 }
 
 func main() {
-	sim.NewSIMServer(hooker{})
-	sim.SetDebug()
+	sim.NewSIMServer(hooker{},sim.WithServerDebug())
 	tk := &talk{http: NewHTTP()}
 	if err := sim.Run(); err != nil {
 		panic(err)
@@ -65,7 +65,6 @@ func main() {
 			panic(err)
 		}
 	}()
-
 	go func() {
 		for {
 			time.Sleep(10000 *time.Millisecond)
@@ -73,9 +72,8 @@ func main() {
 			if err !=nil {
 				fmt.Println(err)
 			}
-			fmt.Println("一个循环")
+			//fmt.Println("一个循环")
 		}
-
 	}()
 	sig := make(chan os.Signal, 1)
 
@@ -84,7 +82,7 @@ func main() {
 	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	select {
 	case sig := <-sig:
-		logging.Infof("sim : close signal : %v", sig)
+		logging.Log.Info("main", zap.Any("SIG",sig))
 		if err := sim.Stop(); err != nil {
 			panic(err)
 		}

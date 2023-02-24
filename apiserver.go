@@ -15,13 +15,14 @@ package sim
 import (
 	"context"
 	"errors"
-	"net/http"
-	"sync"
-	"time"
-	_ "net/http/pprof"
 	"github.com/mongofs/sim/pkg/conn"
 	"github.com/mongofs/sim/pkg/logging"
 	"go.uber.org/atomic"
+	"go.uber.org/zap"
+	"net/http"
+	_ "net/http/pprof"
+	"sync"
+	"time"
 )
 
 const (
@@ -46,7 +47,6 @@ type sim struct {
 	// this parameter is for judge sim status ( running or not )
 	running uint
 
-	debug bool
 
 	// this is the option about sim ,you can see ./option.go or github.com/mongofs/sim/option.go
 	// you can use the function provided by option.go to set the parameters
@@ -80,23 +80,21 @@ func NewSIMServer(hooker Hooker, opts ...OptionFunc) error {
 	}
 
 	options := LoadOptions(hooker, opts...)
-	var (
-		logger logging.Logger
-	)
-	if options.LogPath != "" {
-		logging.FlushLogPath(options.LogPath, "test", logging.OutputStdout)
-	} else {
-		logger = logging.GetDefaultLogger()
-	}
-	if options.Logger == nil {
-		options.Logger = logger
-	}
-
 	b := &sim{
 		num:     atomic.Int64{},
 		opt:     options,
 		running: RunStatusStopped,
 	}
+	// logger
+	{
+		var loggingOps = []logging.OptionFunc{
+			logging.SetLevel(logging.InfoLevel),
+			logging.SetLogName("sim"),
+			logging.SetLogPath("./log"),
+		}
+		logging.InitZapLogger(b.opt.debug, loggingOps...)
+	}
+
 	b.num.Store(0)
 	b.initBucket() // init bucket plugin
 
@@ -152,28 +150,23 @@ func Stop() error {
 	return nil
 }
 
-// this function is for Debug when you start this ,it will open the pprof
-// so the default value is false
-func SetDebug() error {
-	if stalk == nil {
-		return errInstanceIsNotExist
-	}
-	if stalk.running != RunStatusStopped {
-		// that is mean the sim not run
-		return errServerIsRunning
-	}
-
-	stalk.pprof()
-	return nil
-}
 
 type HandleUpgrade func(w http.ResponseWriter, r *http.Request) error
 
-func (s *sim) pprof() {
-	s.debug = true
-	go func() {
-		http.ListenAndServe(s.opt.PProfPort, nil)
-	}()
+func (s *sim) pprof()error {
+	if s.opt.debug {
+		if stalk == nil {
+			return errInstanceIsNotExist
+		}
+		if stalk.running != RunStatusRunning {
+			// that is mean the sim not run
+			return errServerIsNotRunning
+		}
+		go func() {
+			http.ListenAndServe(s.opt.PProfPort, nil)
+		}()
+	}
+	return nil
 }
 
 func (s *sim) run() error {
@@ -183,22 +176,30 @@ func (s *sim) run() error {
 			s.opt.ServerDiscover.Deregister()
 		}()
 	}
-
 	parallelTask, finishChannel := s.Parallel()
 	s.running = RunStatusRunning
-
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+
+			}
+		}()
+
 		// monitor the channel and log the out information
 		for {
 			select {
 			case <-finishChannel:
-				logging.Infof("sim : exit -1 ")
+				logging.Log.Info("sim : exit -1 ")
 				return
 			case finishMark := <-parallelTask:
-				logging.Infof("sim : %v parallel task is out ", finishMark)
+				logging.Log.Info("task finish",zap.String("FINISH_TASK",finishMark))
 			}
 		}
 	}()
+	if err :=s.pprof();err!=nil{
+		// todo
+		panic(err)
+	}
 	return nil
 }
 
@@ -249,7 +250,7 @@ func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
 		cli.Close("register to bucket error ")
 		return err
 	} else {
-		logging.Infof("sim : %v connected ,bucket : %v ,number : %v", cli.Identification(), bucketId, userNum)
+		logging.Log.Info("upgrade", zap.String("ID", cli.Identification()), zap.String("BUCKET_ID", bucketId), zap.Int64("BUCKET_ONLINE", userNum))
 		return nil
 	}
 }
@@ -268,7 +269,7 @@ func (s *sim) Parallel() (chan string, chan string) {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				logging.Errorf("sim/apiServer.go : parallel task occurred Panic %v", err)
+				logging.Log.Error("Parallel", zap.Any("PANIC", err))
 			}
 		}()
 		wg := sync.WaitGroup{}
@@ -277,12 +278,12 @@ func (s *sim) Parallel() (chan string, chan string) {
 			go func() {
 				defer func() {
 					if err := recover(); err != nil {
-						logging.Errorf("sim/apiServer.go : parallel task occurred Panic %v", err)
+						logging.Log.Error("Parallel", zap.Any("PANIC", err))
 					}
 				}()
 				mark, err := v(s.ctx)
 				if err != nil {
-					logging.Errorf("sim/apiServer.go : parallel task occurred error %v", err)
+					logging.Log.Error("Parallel task", zap.Error(err))
 					return
 				}
 				monitor <- mark

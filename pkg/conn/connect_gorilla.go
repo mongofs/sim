@@ -14,6 +14,7 @@ package conn
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"net/http"
 	"sync"
 	"time"
@@ -53,10 +54,10 @@ type conn struct {
 	// 通知到bucket层以及其他层进行处理，但是bucket作为connect管理单元，在做上层channel监听
 	// 的时候尽量不要读取closeChan
 
-	notify   chan<- string
+	notify chan<- string
 
 	// closeChan
-	closeChan chan struct{}
+	closeChan   chan struct{}
 	messageType MessageType // text /binary
 }
 
@@ -68,8 +69,8 @@ func NewConn(Id string, sig chan<- string, w http.ResponseWriter, r *http.Reques
 		identification: Id,
 		buffer:         make(chan []byte, userOption.Buffer),
 		heartBeatTime:  time.Now().Unix(),
-		notify:      sig,
-		closeChan: make(chan struct{}),
+		notify:         sig,
+		closeChan:      make(chan struct{}),
 		messageType:    userOption.MessageType,
 	}
 	err := result.upgrade(w, r, userOption.ConnectionReadBuffer, userOption.ConnectionWriteBuffer)
@@ -118,24 +119,23 @@ func (c *conn) GetLastHeartBeatTime() int64 {
 func (c *conn) monitorSend() {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Errorf("sim :  occurred panic when call monitorSend %v", err)
+			logging.Log.Error("monitorSend", zap.Any("PANIC", err))
 		}
 	}()
 	for {
 		select {
-		case <- c.closeChan:
+		case <-c.closeChan:
 			goto loop
 		case data := <-c.buffer:
 			startTime := time.Now()
 			err := c.con.WriteMessage(int(c.messageType), data)
 			if err != nil {
-				logging.Warnf("sim : occurred error when send message : %v",err)
+				logging.Log.Warn("monitorSend", zap.Error(err))
 				goto loop
 			}
 			spendTime := time.Since(startTime)
 			if spendTime > time.Duration(2)*time.Second {
-				logging.Warnf("sim : the situation of net is bad ,"+
-					" Identification is '%v':'%v'", c.Identification(), spendTime)
+				logging.Log.Warn("monitorSend weak net ", zap.String("ID", c.identification), zap.Any("SPEND TIME", spendTime))
 			}
 		}
 	}
@@ -146,30 +146,28 @@ loop:
 func (c *conn) monitorReceive(handleReceive Receive) {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Errorf("sim : occurred panic when receive content:  %v", err)
+			logging.Log.Error("monitorReceive ", zap.Any("panic", err))
 		}
 	}()
 	for {
-
-			_, data, err := c.con.ReadMessage()
-			if err != nil {
-				goto loop
-			}
-			handleReceive(c, data)
-
+		_, data, err := c.con.ReadMessage()
+		if err != nil {
+			goto loop
+		}
+		handleReceive(c, data)
 	}
 loop:
 	c.close("monitorReceive")
 }
 
-func (c *conn) close(cause string ) {
+func (c *conn) close(cause string) {
 	c.once.Do(func() {
 		c.notify <- c.Identification()
 		close(c.closeChan)
-		if err := c.con.Close();err!=nil {
-			logging.Errorf("sim : occurred error when close connection:  %v", err)
+		if err := c.con.Close(); err != nil {
+			logging.Log.Error("close conn ", zap.Error(err))
 		}
-		logging.Infof("sim : Identification ' %v ' offline ,cause '%s' ", c.Identification(),cause)
+		logging.Log.Info("close", zap.String("ID", c.identification), zap.String("CAUSE", cause))
 	})
 }
 

@@ -40,7 +40,7 @@ func TestLabel_Status(t *testing.T) {
 	Convey("进行各种状态测试，查看状态是否判断正确", t, func() {
 		Convey("测试扩容过程中状态判断是否正确", func() {
 			// 容量为2
-			tg, err := NewLabel("demo", 2)
+			tg, err := NewLabel("example", 2)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -57,7 +57,7 @@ func TestLabel_Status(t *testing.T) {
 		})
 
 		Convey("测试需要缩容的情况是否正确", func() {
-			tg, err := NewLabel("demo", 2)
+			tg, err := NewLabel("example", 2)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -82,7 +82,7 @@ func TestLabel_Status(t *testing.T) {
 
 
 		Convey("测试在状态错误下能否自行校正", func() {
-			tg, err := NewLabel("demo", 2)
+			tg, err := NewLabel("example", 2)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -102,7 +102,7 @@ func TestLabel_Status(t *testing.T) {
 
 func TestTarget_Balance(t *testing.T) {
 	Convey("测试重平衡", t, func() {
-		tg, err := NewLabel("demo", 20,)
+		tg, err := NewLabel("example", 20,)
 		if err != nil {
 			t.Fatal(err)
 		}

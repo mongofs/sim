@@ -1,0 +1,6 @@
+# Version v1.01
+FROM  frolvlad/alpine-glibc
+MAINTAINER steven
+RUN [./example]
+WORKDIR /steven
+VOLUME

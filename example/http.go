@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/mongofs/sim"
 	"github.com/mongofs/sim/pkg/logging"
+	"go.uber.org/zap"
 	"net"
 	"net/http"
 )
@@ -79,10 +80,10 @@ func (s *httpserver) run(ctx context.Context) error {
 	}
 	defer listen.Close()
 	if err != nil {
-		logging.Infof("sim : occur error when  start HTTP server at %s ,err : %v", s.port, err.Error())
+		logging.Log.Info("run" ,zap.Error(err))
 		return err
 	}
-	logging.Infof("sim : start HTTP example at %s ", s.port)
+	logging.Log.Info("run", zap.String("PORT",s.port))
 	if err := http.Serve(listen, s.http); err != nil {
 		return err
 	}
