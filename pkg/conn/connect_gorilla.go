@@ -26,14 +26,13 @@ import (
 )
 
 const (
-	StatusConnectionClosed = iota +1
+	StatusConnectionClosed = iota + 1
 	StatusConnectionRunning
 )
 
-
 var (
 	ErrConnectionIsClosed = errors.New("connection is closed")
-	ErrConnectionIsWeak = errors.New("connection is in weak status")
+	ErrConnectionIsWeak   = errors.New("connection is in weak status")
 )
 
 // This connection is upgrade of  github.com/gorilla/websocket
@@ -90,6 +89,7 @@ func NewConn(Id string, sig chan<- string, w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		return nil, err
 	}
+	result.status = StatusConnectionRunning
 	go result.monitorSend()
 	go result.monitorReceive(Receive)
 	return result, nil
@@ -100,11 +100,12 @@ func (c *conn) Identification() string {
 }
 
 func (c *conn) Send(data []byte) error {
-	if c.status !=StatusConnectionRunning {
+	if c.status != StatusConnectionRunning {
 		// judge the status of connection
 		return ErrConnectionIsClosed
 	}
 	if len(c.buffer)*10 > cap(c.buffer)*7 {
+		sendLoseContent.Inc()
 		// judge the Send channel first
 		return ErrConnectionIsWeak
 	}
@@ -116,7 +117,6 @@ func (c *conn) Close(reason string) {
 	c.close(reason)
 }
 
-
 func (c *conn) ReFlushHeartBeatTime() {
 	c.heartBeatTime = time.Now().Unix()
 }
@@ -126,9 +126,17 @@ func (c *conn) GetLastHeartBeatTime() int64 {
 }
 
 var (
-	sendContent       *atomic.Int64
-	sendContentLength *atomic.Int64
+	sendContent       *atomic.Int64 = &atomic.Int64{}
+	sendContentLength *atomic.Int64 = &atomic.Int64{}
+	sendLoseContent   *atomic.Int64 = &atomic.Int64{}
 )
+
+func SwapSendData() (content, loseContent, contentLength int64) {
+	content = sendContent.Swap(0)
+	loseContent = sendLoseContent.Swap(0)
+	contentLength = sendContentLength.Swap(0)
+	return
+}
 
 func (c *conn) monitorSend() {
 	defer func() {
@@ -169,16 +177,16 @@ func (c *conn) monitorReceive(handleReceive Receive) {
 	for {
 		_, data, err := c.con.ReadMessage()
 		if err != nil {
-			temErr =err
+			temErr = err
 			goto loop
 		}
 		handleReceive(c, data)
 	}
 loop:
-	c.close("monitorReceive",temErr)
+	c.close("monitorReceive", temErr)
 }
 
-func (c *conn) close(cause string,err... error) {
+func (c *conn) close(cause string, err ...error) {
 	c.once.Do(func() {
 		c.status = StatusConnectionClosed
 		c.notify <- c.Identification()
@@ -190,7 +198,7 @@ func (c *conn) close(cause string,err... error) {
 		}
 		close(c.closeChan)
 		if err := c.con.Close(); err != nil {
-			logging.Log.Error("close ", zap.String("ID",c.identification),zap.Error(err))
+			logging.Log.Error("close ", zap.String("ID", c.identification), zap.Error(err))
 		}
 		logging.Log.Info("close", zap.String("ID", c.identification), zap.String("OFFLINE_CAUSE", cause))
 	})

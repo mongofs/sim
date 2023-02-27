@@ -16,6 +16,7 @@ package sim
 import (
 	"context"
 	"fmt"
+	"github.com/mongofs/sim/pkg/conn"
 	"github.com/mongofs/sim/pkg/logging"
 	"github.com/zhenjl/cityhash"
 	"go.uber.org/zap"
@@ -29,11 +30,11 @@ func (s *sim) initBucket() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 
 	for i := 0; i < s.opt.ServerBucketNumber; i++ {
-		s.bs[i] = NewBucket(s.opt,i,s.ctx)
+		s.bs[i] = NewBucket(s.opt, i, s.ctx)
 	}
 
-	logging.Log.Info("initBucket",zap.Int("BUCKET_NUMBER", s.opt.ServerBucketNumber))
-	logging.Log.Info("initBucket",zap.Int("BUCKET_SIZE", s.opt.BucketSize))
+	logging.Log.Info("initBucket", zap.Int("BUCKET_NUMBER", s.opt.ServerBucketNumber))
+	logging.Log.Info("initBucket", zap.Int("BUCKET_SIZE", s.opt.BucketSize))
 }
 
 func (s *sim) bucket(token string) bucketInterface {
@@ -41,11 +42,12 @@ func (s *sim) bucket(token string) bucketInterface {
 	return s.bs[idx]
 }
 
-
 func (s *sim) monitorBucket(ctx context.Context) (string, error) {
 	var interval = 10
+	var dataMonitorInterval = 60
+	dataMonitorTimer := time.NewTimer(time.Duration(dataMonitorInterval) * time.Second)
 	timer := time.NewTicker(time.Duration(interval) * time.Second)
-	logging.Log.Info("monitorBucket ",zap.Int("MONITOR_ONLINE_INTERVAL",interval))
+	logging.Log.Info("monitorBucket ", zap.Int("MONITOR_ONLINE_INTERVAL", interval))
 	for {
 		select {
 		case <-ctx.Done():
@@ -58,12 +60,20 @@ func (s *sim) monitorBucket(ctx context.Context) (string, error) {
 			s.num.Store(sum)
 			if s.opt.debug == true {
 				// you get get the pprof ,
-				pprof:= fmt.Sprintf("http://127.0.0.1%v/debug/pprof",s.opt.PProfPort)
+				pprof := fmt.Sprintf("http://127.0.0.1%v/debug/pprof", s.opt.PProfPort)
 
-				logging.Log.Info("monitorBucket ",zap.Int64("ONLINE",s.num.Load()),zap.String("PPROF",pprof))
-			}else {
-				logging.Log.Info("monitorBucket ",zap.Int64("ONLINE",s.num.Load()))
+				logging.Log.Info("monitorBucket ", zap.Int64("ONLINE", s.num.Load()), zap.String("PPROF", pprof))
+			} else {
+				logging.Log.Info("monitorBucket ", zap.Int64("ONLINE", s.num.Load()))
 			}
+		case <-dataMonitorTimer.C:
+			content, loseContent, contentLength := conn.SwapSendData()
+			logging.Log.Info("monitorBucket",
+				zap.Int64("COUNT_LOSE_CONTENT", loseContent),
+				zap.Int64("COUNT_CONTENT", content),
+				zap.Int64("COUNT_CONTENT_LEN(Byte)", contentLength),
+				zap.Int64("COUNT_CONTENT_LEN(KB)", contentLength/1024),
+				zap.Int64("COUNT_CONTENT_LEN(MB)", contentLength/1024/1024))
 		}
 	}
 }

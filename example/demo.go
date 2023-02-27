@@ -25,8 +25,7 @@ func (h hooker) Validate(token string) error {
 	return nil
 }
 
-
-func (h hooker) Offline(cli conn.Connect,ty int )  {
+func (h hooker) Offline(cli conn.Connect, ty int) {
 	if ty == sim.OfflineBySqueezeOut {
 		cli.Send([]byte("您已经被挤掉了"))
 	}
@@ -53,23 +52,26 @@ func (h hooker) IdentificationHook(w http.ResponseWriter, r *http.Request) (stri
 	return r.Form.Get("token"), nil
 
 }
+func test() {
+	fmt.Println(len([]byte("1234567890"))) // 10
+}
 
 func main() {
-	sim.NewSIMServer(hooker{},sim.WithServerDebug())
+	sim.NewSIMServer(hooker{}, sim.WithServerDebug())
 	tk := &talk{http: NewHTTP()}
 	if err := sim.Run(); err != nil {
 		panic(err)
 	}
 	go func() {
-		if err := tk.http.Run(sim.Upgrade);err!=nil {
+		if err := tk.http.Run(sim.Upgrade); err != nil {
 			panic(err)
 		}
 	}()
 	go func() {
 		for {
-			time.Sleep(10000 *time.Millisecond)
-			err:=  sim.SendMessage([]byte("123445"),[]string{})
-			if err !=nil {
+			time.Sleep(5000 * time.Millisecond)
+			err := sim.SendMessage([]byte("1234567890"), []string{})
+			if err != nil {
 				fmt.Println(err)
 			}
 			//fmt.Println("一个循环")
@@ -82,7 +84,7 @@ func main() {
 	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	select {
 	case sig := <-sig:
-		logging.Log.Info("main", zap.Any("SIG",sig))
+		logging.Log.Info("main", zap.Any("SIG", sig))
 		if err := sim.Stop(); err != nil {
 			panic(err)
 		}

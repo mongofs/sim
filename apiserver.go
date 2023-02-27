@@ -96,13 +96,15 @@ func NewSIMServer(hooker Hooker, opts ...OptionFunc) error {
 	if stalk != nil {
 		return errInstanceIsExist
 	}
-
+	ctx, cancel := context.WithCancel(context.Background())
 	options := LoadOptions(hooker, opts...)
 	b := &sim{
 		hooker:  hooker,
 		num:     atomic.Int64{},
 		opt:     options,
 		running: RunStatusStopped,
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 	// logger
 	{
@@ -236,8 +238,8 @@ func (s *sim) sendMessage(message []byte, users []string) {
 	}
 	// because there is no parallel problem in slice when you read the data
 	// and there is no any operate action on bucket slice ,so not use locker
-	for _, bucket := range s.bs {
-		bucket.SendMessage(message)
+	for _, bt := range s.bs {
+		bt.SendMessage(message)
 	}
 	return
 }
@@ -292,11 +294,11 @@ func (s *sim) Parallel() (chan string, chan string) {
 		for _, v := range prepareParallelFunc {
 			wg.Add(1)
 			go func() {
-				defer func() {
+				/*defer func() {
 					if err := recover(); err != nil {
 						logging.Log.Error("Parallel", zap.Any("PANIC", err))
 					}
-				}()
+				}()*/
 				mark, err := v(s.ctx)
 				if err != nil {
 					logging.Log.Error("Parallel task", zap.Error(err))
