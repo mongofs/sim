@@ -30,6 +30,22 @@ const (
 	RunStatusStopped
 )
 
+type Hooker interface {
+	// when the client request to make a connection , you need to check the request is legal
+	// or not ,when the client is legal , we will call the ValidateSuccess , the other side will
+	// call the ValidateFailed
+	Validate(token string) error
+	ValidateFailed(err error, cli conn.Connect)
+	ValidateSuccess(cli conn.Connect)
+
+	// when client send message by connection , the server need use this function to implement
+	// logic of receive message
+	HandleReceive(conn conn.Connect, data []byte)
+
+	// when we create the connection ,we need know the identification , this is you must to implement
+	IdentificationHook(w http.ResponseWriter, r *http.Request) (string, error)
+}
+
 type sim struct {
 	// this is the slice of bucket , the bucket implement you can see ./bucket.go
 	// or github/mongofs/sim/bucket.go . for avoid the big locker , the specific
@@ -47,10 +63,12 @@ type sim struct {
 	// this parameter is for judge sim status ( running or not )
 	running uint
 
-
 	// this is the option about sim ,you can see ./option.go or github.com/mongofs/sim/option.go
 	// you can use the function provided by option.go to set the parameters
 	opt *Options
+
+	// this is hook your must to implement
+	hooker Hooker
 }
 
 var (
@@ -81,6 +99,7 @@ func NewSIMServer(hooker Hooker, opts ...OptionFunc) error {
 
 	options := LoadOptions(hooker, opts...)
 	b := &sim{
+		hooker:  hooker,
 		num:     atomic.Int64{},
 		opt:     options,
 		running: RunStatusStopped,
@@ -150,10 +169,9 @@ func Stop() error {
 	return nil
 }
 
-
 type HandleUpgrade func(w http.ResponseWriter, r *http.Request) error
 
-func (s *sim) pprof()error {
+func (s *sim) pprof() error {
 	if s.opt.debug {
 		if stalk == nil {
 			return errInstanceIsNotExist
@@ -184,7 +202,6 @@ func (s *sim) run() error {
 
 			}
 		}()
-
 		// monitor the channel and log the out information
 		for {
 			select {
@@ -192,11 +209,11 @@ func (s *sim) run() error {
 				logging.Log.Info("sim : exit -1 ")
 				return
 			case finishMark := <-parallelTask:
-				logging.Log.Info("task finish",zap.String("FINISH_TASK",finishMark))
+				logging.Log.Info("task finish", zap.String("FINISH_TASK", finishMark))
 			}
 		}
 	}()
-	if err :=s.pprof();err!=nil{
+	if err := s.pprof(); err != nil {
 		// todo
 		panic(err)
 	}
@@ -226,7 +243,7 @@ func (s *sim) sendMessage(message []byte, users []string) {
 }
 func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
 	// this is plugin need the coder to implement it
-	identification, err := s.opt.hooker.IdentificationHook(w, r)
+	identification, err := s.hooker.IdentificationHook(w, r)
 	if err != nil {
 		return err
 	}
@@ -235,15 +252,15 @@ func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
 	// try to close the same identification device
 	bs.Offline(identification)
 	sig := bs.SignalChannel()
-	cli, err := conn.NewConn(identification, sig, w, r, s.opt.hooker.HandleReceive)
+	cli, err := conn.NewConn(identification, sig, w, r, s.hooker.HandleReceive)
 	if err != nil {
 		return err
 	}
-	if err := s.opt.hooker.Validate(identification); err != nil {
-		s.opt.hooker.ValidateFailed(err, cli)
+	if err := s.hooker.Validate(identification); err != nil {
+		s.hooker.ValidateFailed(err, cli)
 		return nil
 	} else {
-		s.opt.hooker.ValidateSuccess(cli)
+		s.hooker.ValidateSuccess(cli)
 	}
 	if bucketId, userNum, err := bs.Register(cli); err != nil {
 		cli.Send([]byte(err.Error()))

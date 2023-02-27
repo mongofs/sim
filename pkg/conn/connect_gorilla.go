@@ -14,6 +14,7 @@ package conn
 
 import (
 	"fmt"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"net/http"
 	"sync"
@@ -116,6 +117,11 @@ func (c *conn) GetLastHeartBeatTime() int64 {
 	return c.heartBeatTime
 }
 
+var (
+	sendContent       *atomic.Int64
+	sendContentLength *atomic.Int64
+)
+
 func (c *conn) monitorSend() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -135,8 +141,10 @@ func (c *conn) monitorSend() {
 			}
 			spendTime := time.Since(startTime)
 			if spendTime > time.Duration(2)*time.Second {
-				logging.Log.Warn("monitorSend weak net ", zap.String("ID", c.identification), zap.Any("SPEND TIME", spendTime))
+				logging.Log.Warn("monitorSend weak net ", zap.String("ID", c.identification), zap.Any("WEAK_NET", spendTime))
 			}
+			sendContent.Inc()
+			sendContentLength.Add(int64(len(data)))
 		}
 	}
 loop:

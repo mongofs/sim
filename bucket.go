@@ -72,7 +72,8 @@ type bucket struct {
 	opts     *Options
 }
 
-func NewBucket(option *Options, id int, ctx context.Context) *bucket {
+
+func NewBucket(option *Options, id int ,ctx context.Context) *bucket {
 	res := &bucket{
 		id:       "bucket_" + strconv.Itoa(id),
 		rw:       sync.RWMutex{},
@@ -101,8 +102,8 @@ func (h *bucket) consumer(counter int) {
 	for i := 0; i < counter; i++ {
 		go func() {
 			defer func() {
-				if err :=recover();err !=nil {
-					logging.Log.Error("consumer",zap.Any("PANIC",err))
+				if err := recover(); err != nil {
+					logging.Log.Error("consumer", zap.Any("PANIC", err))
 				}
 			}()
 			for {
@@ -130,7 +131,7 @@ func (h *bucket) Offline(identification string) {
 	delete(h.users, identification)
 	h.rw.Unlock()
 	if ok {
-		h.opts.hooker.Offline(cli, OfflineBySqueezeOut)
+		h.opts.Offline(cli, OfflineBySqueezeOut)
 		time.Sleep(50 * time.Millisecond)
 		cli.Close("Use the Bucket API : Offline ")
 	}
@@ -227,8 +228,8 @@ func (h *bucket) delUser(identification string) {
 // run in a goroutine
 func (h *bucket) monitorDelChannel() {
 	defer func() {
-		if err := recover();err !=nil {
-			logging.Log.Fatal("monitorDelChannel",zap.Any("PANIC",err))
+		if err := recover(); err != nil {
+			logging.Log.Fatal("monitorDelChannel", zap.Any("PANIC", err))
 		}
 	}()
 	if h.ctx != nil {
@@ -254,7 +255,7 @@ func (h *bucket) monitorDelChannel() {
 func (h *bucket) keepAlive() {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Log.Error("keepAlive",zap.Any("PANIC",err))
+			logging.Log.Error("keepAlive", zap.Any("PANIC", err))
 		}
 	}()
 	if h.opts.ClientHeartBeatInterval == 0 {
