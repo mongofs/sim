@@ -191,7 +191,7 @@ func (h *bucket) send(data []byte, token string, Ack bool) {
 		return
 	} else {
 		err := cli.Send(data)
-		logging.Log.Error("bucket send", zap.Error(err))
+		logging.Log.Error("bucket send", zap.String("ID",cli.Identification()),zap.Error(err))
 	}
 	return
 }
@@ -201,7 +201,10 @@ func (h *bucket) broadCast(data []byte, Ack bool) {
 	for _, cli := range h.users {
 		err := cli.Send(data)
 		if err != nil {
-			logging.Log.Error("bucket broadCast", zap.Error(err))
+			if !errors.Is(err,conn.ErrConnectionIsClosed) {
+				// if err == errConnectionIsClosed  ,there is no need to record
+				logging.Log.Error("bucket broadCast", zap.String("ID",cli.Identification()),zap.Error(err))
+			}
 			continue
 		}
 	}
@@ -218,7 +221,6 @@ func (h *bucket) delUser(identification string) {
 	delete(h.users, identification)
 	//更新在线用户数量
 	h.np.Add(-1)
-
 	if h.callback != nil {
 		h.callback()
 	}

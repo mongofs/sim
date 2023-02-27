@@ -20,7 +20,7 @@ the form to show the code you need check logs up
 | PANIC    | panic | string|
 | SPEND_TIME    | the spend time of  write message to connection |string|
 | WEAK_NET    | users' connection is in weak status |string|
-| CAUSE    | connection closed by CAUSE | string|
+| OFFLINE_CAUSE    | connection closed by CAUSE | string|
 |COUNT_LOSE_CONTENT|The data packets lost during the period between the last printing and the current printing |int64|
 |COUNT_CONTENT|The total data packets during the period between the last printing and the current printing|int64|
 |COUNT_CONTENT_LEN|The total packet length during the period between the last printing and the current printing|int64|
@@ -43,7 +43,7 @@ the form to show the code you need check logs up
 | PANIC    | 程序出现panic被捕获 | string|
 | SPEND_TIME    | 用户下推失败，出现丢包 |string|
 | WEAK_NET    | 用户链接写入时间过长：最终还是写入成功 |string|
-| CAUSE    | 用户连接断线的原因 | string|
+| OFFLINE_CAUSE    | 用户连接断线的原因 | string|
 |COUNT_LOSE_CONTENT|上次打印丢包到这次打印丢包期间丢包总数量|int64|
 |COUNT_CONTENT|从上次打印下推消息到这次下推消息总数量（包数量）|int64|
 |COUNT_CONTENT_LEN|从上一次下推到现在总的下推消息的总长度|int64|

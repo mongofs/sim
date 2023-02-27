@@ -13,7 +13,6 @@
 package conn
 
 import (
-	"fmt"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"net/http"
@@ -24,6 +23,17 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
+)
+
+const (
+	StatusConnectionClosed = iota +1
+	StatusConnectionRunning
+)
+
+
+var (
+	ErrConnectionIsClosed = errors.New("connection is closed")
+	ErrConnectionIsWeak = errors.New("connection is in weak status")
 )
 
 // This connection is upgrade of  github.com/gorilla/websocket
@@ -57,6 +67,8 @@ type conn struct {
 
 	notify chan<- string
 
+	status int
+
 	// closeChan
 	closeChan   chan struct{}
 	messageType MessageType // text /binary
@@ -88,14 +100,13 @@ func (c *conn) Identification() string {
 }
 
 func (c *conn) Send(data []byte) error {
+	if c.status !=StatusConnectionRunning {
+		// judge the status of connection
+		return ErrConnectionIsClosed
+	}
 	if len(c.buffer)*10 > cap(c.buffer)*7 {
-		// todo 这里处理方式展示不够优雅，用户可以根据自身业务情况处理
-		// 丢弃用户消息，// 此时表明用户网络处于非常差的情况，后续将兼容
-		// 延迟重发，不过需要引入新的中间件进行消息存储，对于不是强一致性
-		// 的场景建议不用存储，在我实际公司业务，如果到这一步了就会让用户
-		// 断开连接，等用户网络好后先通过api同步数据
-		return errors.New(fmt.Sprintf("sim : user buffer is %d ,but the "+
-			"length of content is %d", cap(c.buffer), len(c.buffer)))
+		// judge the Send channel first
+		return ErrConnectionIsWeak
 	}
 	c.buffer <- data
 	return nil
@@ -105,9 +116,6 @@ func (c *conn) Close(reason string) {
 	c.close(reason)
 }
 
-func (c *conn) SetMessageType(messageType MessageType) {
-	c.messageType = messageType
-}
 
 func (c *conn) ReFlushHeartBeatTime() {
 	c.heartBeatTime = time.Now().Unix()
@@ -157,25 +165,34 @@ func (c *conn) monitorReceive(handleReceive Receive) {
 			logging.Log.Error("monitorReceive ", zap.Any("panic", err))
 		}
 	}()
+	var temErr error
 	for {
 		_, data, err := c.con.ReadMessage()
 		if err != nil {
+			temErr =err
 			goto loop
 		}
 		handleReceive(c, data)
 	}
 loop:
-	c.close("monitorReceive")
+	c.close("monitorReceive",temErr)
 }
 
-func (c *conn) close(cause string) {
+func (c *conn) close(cause string,err... error) {
 	c.once.Do(func() {
+		c.status = StatusConnectionClosed
 		c.notify <- c.Identification()
+		if len(err) > 0 {
+			if err[0] != nil {
+				// todo
+				//logging.Log.Error("close ", zap.String("ID",c.identification),zap.Error(err[0]))
+			}
+		}
 		close(c.closeChan)
 		if err := c.con.Close(); err != nil {
-			logging.Log.Error("close conn ", zap.Error(err))
+			logging.Log.Error("close ", zap.String("ID",c.identification),zap.Error(err))
 		}
-		logging.Log.Info("close", zap.String("ID", c.identification), zap.String("CAUSE", cause))
+		logging.Log.Info("close", zap.String("ID", c.identification), zap.String("OFFLINE_CAUSE", cause))
 	})
 }
 

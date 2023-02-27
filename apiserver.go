@@ -263,7 +263,6 @@ func (s *sim) upgrade(w http.ResponseWriter, r *http.Request) error {
 		s.hooker.ValidateSuccess(cli)
 	}
 	if bucketId, userNum, err := bs.Register(cli); err != nil {
-		cli.Send([]byte(err.Error()))
 		cli.Close("register to bucket error ")
 		return err
 	} else {

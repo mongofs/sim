@@ -27,8 +27,6 @@ type Connect interface {
 
 	Close(reason string)
 
-	SetMessageType(messageType MessageType)
-
 	ReFlushHeartBeatTime()
 
 	GetLastHeartBeatTime() int64
