@@ -21,9 +21,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mongofs/sim/pkg/conn"
-	"github.com/mongofs/sim/pkg/logging"
 	"go.uber.org/atomic"
+	"sim/pkg/conn"
+	"sim/pkg/logging"
 )
 
 type bucketInterface interface {
@@ -72,8 +72,7 @@ type bucket struct {
 	opts     *Options
 }
 
-
-func NewBucket(option *Options, id int ,ctx context.Context) *bucket {
+func NewBucket(option *Options, id int, ctx context.Context) *bucket {
 	res := &bucket{
 		id:       "bucket_" + strconv.Itoa(id),
 		rw:       sync.RWMutex{},
@@ -191,7 +190,7 @@ func (h *bucket) send(data []byte, token string, Ack bool) {
 		return
 	} else {
 		err := cli.Send(data)
-		logging.Log.Error("bucket send", zap.String("ID",cli.Identification()),zap.Error(err))
+		logging.Log.Error("bucket send", zap.String("ID", cli.Identification()), zap.Error(err))
 	}
 	return
 }
@@ -201,9 +200,9 @@ func (h *bucket) broadCast(data []byte, Ack bool) {
 	for _, cli := range h.users {
 		err := cli.Send(data)
 		if err != nil {
-			if !errors.Is(err,conn.ErrConnectionIsClosed) {
+			if !errors.Is(err, conn.ErrConnectionIsClosed) {
 				// if err == errConnectionIsClosed  ,there is no need to record
-				logging.Log.Error("bucket broadCast", zap.String("ID",cli.Identification()),zap.Error(err))
+				logging.Log.Error("bucket broadCast", zap.String("ID", cli.Identification()), zap.Error(err))
 			}
 			continue
 		}

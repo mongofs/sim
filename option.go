@@ -14,8 +14,8 @@
 package sim
 
 import (
-	"github.com/mongofs/sim/pkg/conn"
-	"github.com/mongofs/sim/pkg/logging"
+	"sim/pkg/conn"
+	"sim/pkg/logging"
 )
 
 const (
@@ -51,7 +51,7 @@ type Options struct {
 
 	// ====================================== Option for hard code ===============================
 	ServerDiscover Discover // ServerDiscover
-	debug bool
+	debug          bool
 }
 
 type Discover interface {

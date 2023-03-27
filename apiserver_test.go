@@ -1,8 +1,8 @@
 package sim
 
 import (
-	"github.com/mongofs/sim/pkg/conn"
 	"net/http"
+	"sim/pkg/conn"
 	"testing"
 )
 
@@ -81,7 +81,7 @@ func TestNewSIMServer(t *testing.T) {
 }
 
 // we can't mock the IO of net , that is too complicate ,if we want to test this case
-// we just need mock the interface of Connection witch in github.com/mongofs/sim/pkg/conn/connection.go
+// we just need mock the interface of Connection witch in sim/pkg/conn/connection.go
 //
 func TestSendMessage(t *testing.T) {
 	NewSIMServer(&hook{})

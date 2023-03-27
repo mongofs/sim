@@ -15,12 +15,12 @@ package sim
 import (
 	"context"
 	"errors"
-	"github.com/mongofs/sim/pkg/conn"
-	"github.com/mongofs/sim/pkg/logging"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"net/http"
 	_ "net/http/pprof"
+	"sim/pkg/conn"
+	"sim/pkg/logging"
 	"sync"
 	"time"
 )
@@ -63,7 +63,7 @@ type sim struct {
 	// this parameter is for judge sim status ( running or not )
 	running uint
 
-	// this is the option about sim ,you can see ./option.go or github.com/mongofs/sim/option.go
+	// this is the option about sim ,you can see ./option.go or sim/option.go
 	// you can use the function provided by option.go to set the parameters
 	opt *Options
 

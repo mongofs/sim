@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	print2 "github.com/mongofs/sim/pkg/print"
 
 	"github.com/gorilla/websocket"
 	"go.uber.org/atomic"

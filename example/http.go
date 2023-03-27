@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/mongofs/sim"
-	"github.com/mongofs/sim/pkg/logging"
 	"go.uber.org/zap"
 	"net"
 	"net/http"
+	"sim"
+	"sim/pkg/logging"
 )
 
 type httpserver struct {
@@ -36,7 +36,7 @@ func (r *Response) SendJson() (int, error) {
 	return r.w.Write(resp)
 }
 
-func (s *httpserver) Run(upgrade sim.HandleUpgrade)  error {
+func (s *httpserver) Run(upgrade sim.HandleUpgrade) error {
 	s.http.HandleFunc("/conn", func(writer http.ResponseWriter, r *http.Request) {
 		//now := time.Now()
 		defer func() {
@@ -64,7 +64,7 @@ func (s *httpserver) Run(upgrade sim.HandleUpgrade)  error {
 
 		// upgrade connection
 
-		if err := upgrade(writer,r);err != nil{
+		if err := upgrade(writer, r); err != nil {
 			res.Status = 400
 			res.Data = "upgrade failed"
 			res.SendJson()
@@ -75,15 +75,15 @@ func (s *httpserver) Run(upgrade sim.HandleUpgrade)  error {
 
 func (s *httpserver) run(ctx context.Context) error {
 	listen, err := net.Listen("tcp", s.port)
-	if err !=nil {
+	if err != nil {
 		return err
 	}
 	defer listen.Close()
 	if err != nil {
-		logging.Log.Info("run" ,zap.Error(err))
+		logging.Log.Info("run", zap.Error(err))
 		return err
 	}
-	logging.Log.Info("run", zap.String("PORT",s.port))
+	logging.Log.Info("run", zap.String("PORT", s.port))
 	if err := http.Serve(listen, s.http); err != nil {
 		return err
 	}

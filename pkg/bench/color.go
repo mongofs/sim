@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package print
+package main
 
 import (
 	"fmt"
@@ -45,20 +45,20 @@ const (
 )
 
 // Colorize a string based on given color.
-func PrintWithColor(s string, c Color)  {
-	 fmt.Printf("\033[1;%s;40m%s\033[0m\n", strconv.Itoa(int(c)), s)
+func PrintWithColor(s string, c Color) {
+	fmt.Printf("\033[1;%s;40m%s\033[0m\n", strconv.Itoa(int(c)), s)
 }
 
 // Colorize a string based on given color.
-func PrintWithColorAndSpace(s string, c Color,front,back int)  {
+func PrintWithColorAndSpace(s string, c Color, front, back int) {
 	base := fmt.Sprintf("\033[1;%s;40m%s\033[0m\n", strconv.Itoa(int(c)), s)
 	for front > 0 {
-		base = fmt.Sprintf("\n%s",base)
-		front --
+		base = fmt.Sprintf("\n%s", base)
+		front--
 	}
 	for back > 0 {
-		base = fmt.Sprintf("%s\n",base)
-		back --
+		base = fmt.Sprintf("%s\n", base)
+		back--
 	}
 	fmt.Printf(base)
 }

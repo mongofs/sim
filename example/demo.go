@@ -9,9 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mongofs/sim"
-	"github.com/mongofs/sim/pkg/conn"
-	"github.com/mongofs/sim/pkg/logging"
+	"sim/pkg/conn"
+	"sim/pkg/logging"
 )
 
 type talk struct {

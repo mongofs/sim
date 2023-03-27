@@ -16,10 +16,10 @@ package sim
 import (
 	"context"
 	"fmt"
-	"github.com/mongofs/sim/pkg/conn"
-	"github.com/mongofs/sim/pkg/logging"
 	"github.com/zhenjl/cityhash"
 	"go.uber.org/zap"
+	"sim/pkg/conn"
+	"sim/pkg/logging"
 	"time"
 )
 

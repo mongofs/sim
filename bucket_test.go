@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mongofs/sim/pkg/conn"
+	"sim/pkg/conn"
 )
 
 type MockConn struct {
-	id string
+	id        string
 	heartTime int64
 }
 
@@ -18,12 +18,12 @@ func (m MockConn) Identification() string {
 }
 
 func (m MockConn) Send(data []byte) error {
-	fmt.Printf("%v received message : %v\n",m.id ,string(data))
+	fmt.Printf("%v received message : %v\n", m.id, string(data))
 	return nil
 }
 
 func (m MockConn) Close() {
-	fmt.Printf("%v Close the connection \n",m.id )
+	fmt.Printf("%v Close the connection \n", m.id)
 	return
 }
 
@@ -38,7 +38,6 @@ func (m MockConn) ReFlushHeartBeatTime() {
 func (m MockConn) GetLastHeartBeatTime() int64 {
 	return m.heartTime
 }
-
 
 // send message to a person
 func TestBucket_SendMessage(t *testing.T) {
