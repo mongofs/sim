@@ -91,6 +91,18 @@ type ConnectionWithAnyButClose interface {
 	HeartBeater
 }
 
+type ConnectionWithAny interface {
+
+	// io.Closer : close the connection
+	io.Closer
+
+	Connection
+
+	Identification
+
+	HeartBeater
+}
+
 const (
 	StatusConnectionClosed = iota + 1
 	StatusConnectionRunning
@@ -143,7 +155,7 @@ type conn struct {
 	// is use TCP write operation , and get the call back , if callback is error , we can assume the connection
 	// is disconnected.
 
-	notify chan<- string
+	notify chan<- interface{}
 
 	// status : the connection status
 	status int
@@ -153,25 +165,26 @@ type conn struct {
 	closeChan chan struct{}
 
 	// messageType : the message type , text or binary
-	messageType MessageType // text /binary
+	messageType uint8 // text /binary
 }
 
 // ReceiveHandler : this is the callback function when the connection receive data, you must
 // implement this function , and pass it to the NewConn function
 type ReceiveHandler func(conn ConnectionWithAnyButClose, data []byte)
 
+type CheckOrigin func(r *http.Request) bool
+
 // NewConn : create a new connection
-func NewConn(Id string, sig chan<- string, w http.ResponseWriter, r *http.Request, Receive ReceiveHandler) (Connection, error) {
+func NewGorillaConn(option *Option, sig chan<- interface{}, w http.ResponseWriter, r *http.Request, Receive ReceiveHandler) (Connection, error) {
 	result := &conn{
-		once:           sync.Once{},
-		identification: Id,
-		buffer:         make(chan []byte, userOption.Buffer),
-		heartBeatTime:  time.Now().Unix(),
-		notify:         sig,
-		closeChan:      make(chan struct{}),
-		messageType:    userOption.MessageType,
+		once:          sync.Once{},
+		buffer:        make(chan []byte, option.BufferSize),
+		heartBeatTime: time.Now().Unix(),
+		notify:        sig,
+		closeChan:     make(chan struct{}),
+		messageType:   option.MessageType,
 	}
-	err := result.upgrade(w, r, userOption.ConnectionReadBuffer, userOption.ConnectionWriteBuffer)
+	err := result.upgrade(w, r, option.ConnectionReadBuffer, userOption.ConnectionWriteBuffer)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +264,7 @@ loop:
 	c.close("monitorSend is closed")
 }
 
-func (c *conn) monitorReceive(handleReceive Receive) {
+func (c *conn) monitorReceive(handleReceive ReceiveHandler) {
 	defer func() {
 		if err := recover(); err != nil {
 			logging.Log.Error("monitorReceive ", zap.Any("panic", err))
@@ -273,26 +286,27 @@ loop:
 func (c *conn) close(cause string, err ...error) {
 	c.once.Do(func() {
 		c.status = StatusConnectionClosed
-		c.notify <- c.Identification()
+		c.notify <- c.GetIdentification()
 		if len(err) > 0 {
 			if err[0] != nil {
 				// todo
-				//logging.Log.Error("close ", zap.String("ID",c.identification),zap.Error(err[0]))
+				logging.Log.Error("close ", zap.Any("ID", c.GetIdentification()), zap.Error(err[0]))
 			}
 		}
 		close(c.closeChan)
 		if err := c.con.Close(); err != nil {
-			logging.Log.Error("close ", zap.String("ID", c.identification), zap.Error(err))
+			logging.Log.Error("close ", zap.Any("ID", c.GetIdentification()), zap.Error(err))
 		}
-		logging.Log.Info("close", zap.String("ID", c.identification), zap.String("OFFLINE_CAUSE", cause))
+		logging.Log.Info("close", zap.Any("ID", c.GetIdentification()), zap.String("OFFLINE_CAUSE", cause))
 	})
 }
 
-func (c *conn) upgrade(w http.ResponseWriter, r *http.Request, readerSize, writeSize int) error {
+func (c *conn) upgrade(w http.ResponseWriter, r *http.Request, readerSize, writeSize int, checkOrigin CheckOrigin) error {
 	conn, err := (&websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
+		Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
+
 		},
+		CheckOrigin:      checkOrigin,
 		ReadBufferSize:   readerSize,
 		WriteBufferSize:  writeSize,
 		HandshakeTimeout: time.Duration(5) * time.Second,

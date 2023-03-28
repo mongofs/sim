@@ -16,70 +16,48 @@ package conn
 import (
 	"errors"
 	"go.uber.org/atomic"
-)
-
-type MessageType uint
-
-const (
-	Buffer                = 1 << 3
-	ConnectionWriteBuffer = 1 << 10
-	ConnectionReadBuffer  = 1 << 10
+	"net/http"
 )
 
 const (
-	MessageTypeText MessageType = iota + 1
+	// Buffer : buffer the data that need to send, it's not the connection write buffer
+	// if you start this option ,there have risk to lose the data
+	DefaultConnectionBuffer = 1 << 3
+
+	// ConnectionWriteBuffer : connection write buffer
+	DefaultConnectionWriteBuffer = 1 << 10
+
+	// ConnectionReadBuffer : connection read buffer
+	DefaultConnectionReadBuffer = 1 << 10
+)
+
+const (
+	MessageTypeText = iota + 1
 	MessageTypeBinary
 )
 
-// Various errors contained in OpError.
-var (
-	// For connection write buffer param
-	ErrConnWriteBufferParam = errors.New("conn write buffer param is wrong err , the value must bigger the 1")
-
-	// For connection read buffer param
-	ErrConnReadBufferParam = errors.New("conn read buffer param is wrong err , the value must bigger the 1")
-
-	// For connection  buffer param
-	ErrBufferParam = errors.New("conn  buffer param is wrong err , the value must bigger the 1")
-	// For connection  Message Type param
-	ErrMessageTypeParam = errors.New("conn  MessageType param is wrong err , the value must be 1 or 2")
-)
-
 type Option struct {
-	Buffer                int         // Buffer the data that need to send
-	MessageType           MessageType // Message type
-	ConnectionWriteBuffer int         // connection write buffer
-	ConnectionReadBuffer  int         // connection read buffer
-}
+	ConnectionBuffer      int16 // Buffer the data that need to send
+	MessageType           uint8 // Message type
+	ConnectionWriteBuffer int16 // connection write buffer
+	ConnectionReadBuffer  int16 // connection read buffer
 
-func DefaultOption() *Option {
-	return &Option{
-		Buffer:                Buffer,
-		MessageType:           MessageTypeText,
-		ConnectionWriteBuffer: ConnectionWriteBuffer,
-		ConnectionReadBuffer:  ConnectionReadBuffer,
-	}
-}
+	// CheckOrigin : check the origin, if return false , the connection will be closed
+	CheckOrigin func(r *http.Request) bool
 
-var userOption *Option = DefaultOption()
-
-func SetOption(option *Option) error {
-	if err := validate(option); err != nil {
-		return err
-	}
-	userOption = option
-	return nil
+	// Error : if occur the error , you can handle it with this function
+	Error func(w http.ResponseWriter, r *http.Request, status int, reason error)
 }
 
 func validate(option *Option) error {
-	if option.Buffer < 1 {
-		return ErrBufferParam
+	if option.ConnectionBuffer < 1 {
+		return errors.New("buffer param must be greater than 0")
 	} else if option.ConnectionReadBuffer < 1 {
-		return ErrConnReadBufferParam
+		return errors.New("connection read buffer param must be greater than 0")
 	} else if option.ConnectionWriteBuffer < 1 {
-		return ErrConnWriteBufferParam
+		return errors.New("connection write buffer param must be greater than 0")
 	} else if option.MessageType != MessageTypeText && option.MessageType != MessageTypeBinary {
-		return ErrMessageTypeParam
+		return errors.New("message type param must be 1 or 2")
 	} else {
 		return nil
 	}
@@ -95,7 +73,7 @@ type CounterMessageWrapper struct {
 // wrap message
 func WrapSendMessage(message *[]byte) CounterMessageWrapper {
 	return CounterMessageWrapper{
-		origin: message,
+		origin:  message,
 		counter: &atomic.Int64{},
 	}
 }
